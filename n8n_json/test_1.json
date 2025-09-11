@@ -1,0 +1,239 @@
+{
+  "name": "Generador HTML Infografías",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-html",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Separar imágenes por tamaño - la más grande es la infografía\nconst files = $input.all()[0].binary;\nconst projectName = $input.all()[0].json.projectName || 'infografia_' + Date.now();\n\nlet filesSizes = [];\nlet elementImages = [];\nlet finalInfografia = null;\n\n// Calcular tamaño de cada archivo\nObject.keys(files).forEach(key => {\n  const fileSize = Buffer.from(files[key].data, 'base64').length;\n  filesSizes.push({\n    name: key,\n    size: fileSize,\n    data: files[key]\n  });\n});\n\n// Ordenar por tamaño descendente\nfilesSizes.sort((a, b) => b.size - a.size);\n\n// La más grande es la infografía, el resto son elementos\nfinalInfografia = filesSizes[0];\nelementImages = filesSizes.slice(1);\n\nreturn [{\n  json: {\n    projectName,\n    largestFile: finalInfografia.name,\n    largestSize: (finalInfografia.size / 1024 / 1024).toFixed(2) + 'MB',\n    elementCount: elementImages.length,\n    elementSizes: elementImages.map(img => ({\n      name: img.name,\n      size: (img.size / 1024 / 1024).toFixed(2) + 'MB'\n    }))\n  },\n  binary: {\n    finalInfografia: finalInfografia.data,\n    ...elementImages.reduce((acc, img, index) => {\n      acc[`elemento_${index + 1}`] = img.data;\n      return acc;\n    }, {})\n  }\n}];"
+      },
+      "id": "code-separator",
+      "name": "Code - Separar Archivos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2Api",
+        "operation": "create",
+        "resource": "folder",
+        "siteId": "={{$env.SHAREPOINT_SITE_ID}}",
+        "folderPath": "=/Infografias/{{$node['Code - Separar Archivos'].json.projectName}}"
+      },
+      "id": "sharepoint-create-folder",
+      "name": "SharePoint - Crear Carpeta",
+      "type": "n8n-nodes-base.microsoftSharePoint",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-elements",
+      "name": "Split - Elementos",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2Api",
+        "operation": "upload",
+        "resource": "file",
+        "siteId": "={{$env.SHAREPOINT_SITE_ID}}",
+        "fileName": "={{Object.keys($binary)[0]}}.png",
+        "folderPath": "=/Infografias/{{$node['Code - Separar Archivos'].json.projectName}}/images/",
+        "binaryData": true
+      },
+      "id": "sharepoint-upload-elements",
+      "name": "SharePoint - Subir Elementos",
+      "type": "n8n-nodes-base.microsoftSharePoint",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2024-02-15"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-3-5-sonnet-20241022"
+            },
+            {
+              "name": "max_tokens",
+              "value": "8000"
+            },
+            {
+              "name": "messages",
+              "value": "=[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Analiza esta infografía y genera código HTML completo siguiendo las especificaciones de Prima AFP...\"}, {\"type\": \"image\", \"source\": {\"type\": \"base64\", \"media_type\": \"image/png\", \"data\": \"{{$node['Code - Separar Archivos'].binary.finalInfografia.data}}\"}}]}]"
+            }
+          ]
+        }
+      },
+      "id": "claude-api",
+      "name": "Claude Sonnet 4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const htmlContent = $input.all()[0].json.content[0].text;\nconst projectName = $node['Code - Separar Archivos'].json.projectName;\n\n// Limpiar HTML y agregar rutas correctas\nlet finalHTML = htmlContent;\n\n// Reemplazar rutas de imágenes por SharePoint\nconst sharePointBase = $env.SHAREPOINT_BASE_URL;\nfinalHTML = finalHTML.replace(\n  /elemento_(\\d+)\\.png/g, \n  `${sharePointBase}/Infografias/${projectName}/images/elemento_$1.png`\n);\n\nreturn [{\n  json: {\n    projectName,\n    htmlGenerated: true,\n    fileName: `${projectName}.html`\n  },\n  binary: {\n    htmlFile: {\n      data: Buffer.from(finalHTML).toString('base64'),\n      mimeType: 'text/html',\n      fileName: `${projectName}.html`\n    }\n  }\n}];"
+      },
+      "id": "code-process-html",
+      "name": "Code - Procesar HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2Api",
+        "operation": "upload",
+        "resource": "file",
+        "siteId": "={{$env.SHAREPOINT_SITE_ID}}",
+        "fileName": "={{$json.fileName}}",
+        "folderPath": "=/Infografias/{{$json.projectName}}/output/",
+        "binaryData": true,
+        "binaryPropertyName": "htmlFile"
+      },
+      "id": "sharepoint-save-html",
+      "name": "SharePoint - Guardar HTML",
+      "type": "n8n-nodes-base.microsoftSharePoint",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Infografía generada exitosamente\",\n  \"projectName\": \"{{$node['Code - Procesar HTML'].json.projectName}}\",\n  \"files\": {\n    \"html\": \"/output/{{$node['Code - Procesar HTML'].json.fileName}}\",\n    \"sharepoint_url\": \"{{$node['SharePoint - Guardar HTML'].json.webUrl}}\"\n  },\n  \"timestamp\": \"{{new Date().toISOString()}}\"\n}"
+      },
+      "id": "http-response",
+      "name": "Respuesta Final",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code - Separar Archivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Separar Archivos": {
+      "main": [
+        [
+          {
+            "node": "SharePoint - Crear Carpeta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SharePoint - Crear Carpeta": {
+      "main": [
+        [
+          {
+            "node": "Split - Elementos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split - Elementos": {
+      "main": [
+        [
+          {
+            "node": "SharePoint - Subir Elementos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SharePoint - Subir Elementos": {
+      "main": [
+        [
+          {
+            "node": "Claude Sonnet 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 4": {
+      "main": [
+        [
+          {
+            "node": "Code - Procesar HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Procesar HTML": {
+      "main": [
+        [
+          {
+            "node": "SharePoint - Guardar HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SharePoint - Guardar HTML": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Lima"
+  }
+}
