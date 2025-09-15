@@ -480,41 +480,52 @@
         }
         
         try {
-            // Cambiar estado del botón
-            const submitBtn = document.getElementById('submitBtn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = 'Procesando proyecto<span class="loading-spinner"></span>';
-            submitBtn.disabled = true;
-            
-            hideMessages();
-            
-            // Llamada a n8n - CAMBIAR ESTA URL POR TU URL DE PRODUCCIÓN
-            const response = await fetch('https://ferx096.app.n8n.cloud/webhook-test/generate-infografia', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Error del servidor: ${response.status} - ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                showSuccess(result);
-            } else {
-                throw new Error(result.message || 'Error desconocido en el procesamiento');
-            }
-            
-        } catch (error) {
-            console.error('Error completo:', error);
-            showError(`Error de conexión: ${error.message}. Verifica que el servicio esté funcionando.`);
-        } finally {
-            // Restaurar botón
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.innerHTML = 'Generar HTML Profesional';
-            submitBtn.disabled = false;
+        // Cambiar estado del botón
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = 'Procesando proyecto<span class="loading-spinner"></span>';
+        submitBtn.disabled = true;
+        
+        hideMessages();
+        
+        // Debug: mostrar qué se está enviando
+        console.log('Enviando proyecto:', projectName);
+        console.log('Número de archivos:', files.length);
+        
+        // USAR URL DE TEST mientras desarrollas
+        const response = await fetch('https://ferx096.app.n8n.cloud/webhook-test/generate-infografia', {
+            method: 'POST',
+            body: formData,
+            // NO agregar Content-Type header, el navegador lo hace automáticamente con FormData
+        });
+        
+        console.log('Status de respuesta:', response.status);
+        console.log('Headers de respuesta:', [...response.headers.entries()]);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error del servidor:', errorText);
+            throw new Error(`Error del servidor: ${response.status} - ${response.statusText}. Detalle: ${errorText}`);
         }
+        
+        const result = await response.json();
+        console.log('Respuesta exitosa:', result);
+        
+        if (result.success) {
+            showSuccess(result);
+        } else {
+            throw new Error(result.message || 'Error desconocido en el procesamiento');
+        }
+        
+    } catch (error) {
+        console.error('Error completo:', error);
+        showError(`Error de conexión: ${error.message}. Verifica que el servicio esté funcionando.`);
+    } finally {
+        // Restaurar botón
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerHTML = 'Generar HTML Profesional';
+        submitBtn.disabled = false;
+    }
     };
     
     function showSuccess(result) {
