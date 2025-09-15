@@ -1,0 +1,670 @@
+{
+  "name": "Generador HTML Infografías v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-infografia",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Recibir Datos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Recibe: imágenes (base64 o URLs), prompt personalizado, metadata"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant-id",
+              "name": "TENANT_ID",
+              "type": "string",
+              "value": "9f7ea239-412b-4a34-b2a9-bbcbebd9536e"
+            },
+            {
+              "id": "client-id",
+              "name": "CLIENT_ID",
+              "type": "string",
+              "value": "d4fcadd0-f87e-4ed6-be5d-1b108afec2cf"
+            },
+            {
+              "id": "client-secret",
+              "name": "CLIENT_SECRET",
+              "type": "string",
+              "value": "api-client-secret"
+            },
+            {
+              "id": "sharepoint-host",
+              "name": "SHAREPOINT_HOSTNAME",
+              "type": "string",
+              "value": "netorgft4158062.sharepoint.com"
+            },
+            {
+              "id": "sharepoint-site",
+              "name": "SHAREPOINT_SITE",
+              "type": "string",
+              "value": "RespuestasdeFormulariodetraspasos"
+            },
+            {
+              "id": "images-library",
+              "name": "IMAGES_LIBRARY",
+              "type": "string",
+              "value": "Documentos compartidos"
+            },
+            {
+              "id": "images-folder",
+              "name": "IMAGES_FOLDER",
+              "type": "string",
+              "value": "infografias_assets"
+            },
+            {
+              "id": "output-folder",
+              "name": "OUTPUT_FOLDER",
+              "type": "string",
+              "value": "infografias_html"
+            },
+            {
+              "id": "claude-api-key",
+              "name": "CLAUDE_API_KEY",
+              "type": "string",
+              "value": "claude-api"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-env-variables",
+      "name": "Configurar Variables",
+      "type": "n8n-nodes-base.set",
+      "position": [440, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar y validar datos de entrada\nconst inputData = $input.first().json;\n\n// Validar que tenemos las imágenes necesarias\nif (!inputData.images || !Array.isArray(inputData.images) || inputData.images.length === 0) {\n  throw new Error('Se requieren al menos una imagen para generar la infografía');\n}\n\n// Validar imagen de referencia (cómo debe verse la infografía)\nif (!inputData.reference_image) {\n  throw new Error('Se requiere una imagen de referencia de cómo debe verse la infografía');\n}\n\n// Generar ID único para este proyecto\nconst projectId = `infografia_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\n\n// Preparar metadata\nconst metadata = {\n  project_id: projectId,\n  timestamp: timestamp,\n  total_images: inputData.images.length,\n  has_reference: !!inputData.reference_image,\n  user_prompt: inputData.custom_prompt || '',\n  project_name: inputData.project_name || `Infografía ${timestamp}`,\n  ...inputData\n};\n\nreturn {\n  json: {\n    ...metadata,\n    images_to_upload: inputData.images,\n    reference_image: inputData.reference_image\n  }\n};"
+      },
+      "id": "process-input-data",
+      "name": "Procesar Datos Entrada",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://login.microsoftonline.com/{{ $json.TENANT_ID }}/oauth2/v2.0/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $json.CLIENT_ID }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $json.CLIENT_SECRET }}"
+            },
+            {
+              "name": "scope",
+              "value": "https://graph.microsoft.com/.default"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "authentication",
+      "name": "Autenticación SharePoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [840, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $('Configurar Variables').item.json.SHAREPOINT_HOSTNAME }}:/sites/{{ $('Configurar Variables').item.json.SHAREPOINT_SITE }}:",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-site-id",
+      "name": "Obtener Site ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1040, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Crear las carpetas necesarias para el proyecto\nconst projectData = $input.first().json;\nconst siteId = projectData.id;\nconst accessToken = projectData.access_token;\nconst projectId = projectData.project_id;\n\n// Configurar rutas de carpetas\nconst imagesFolder = `/Documentos compartidos/infografias_assets/${projectId}`;\nconst outputFolder = `/Documentos compartidos/infografias_html/${projectId}`;\n\nreturn {\n  json: {\n    ...projectData,\n    SITE_ID: siteId,\n    PROJECT_IMAGES_FOLDER: imagesFolder,\n    PROJECT_OUTPUT_FOLDER: outputFolder,\n    folders_to_create: [\n      {\n        path: imagesFolder,\n        name: projectId,\n        parent: '/Documentos compartidos/infografias_assets'\n      },\n      {\n        path: outputFolder,\n        name: projectId,\n        parent: '/Documentos compartidos/infografias_html'\n      }\n    ]\n  }\n};"
+      },
+      "id": "prepare-folders",
+      "name": "Preparar Estructura Carpetas",
+      "type": "n8n-nodes-base.code",
+      "position": [1240, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-folders",
+      "name": "Dividir Carpetas",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [1440, 300],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $json.SITE_ID }}/drive/root:{{ $json.folders_to_create[$json.batchIndex].parent }}:/children",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $json.folders_to_create[$json.batchIndex].name }}"
+            },
+            {
+              "name": "folder",
+              "value": "{}"
+            },
+            {
+              "name": "@microsoft.graph.conflictBehavior",
+              "value": "rename"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "create-project-folders",
+      "name": "Crear Carpetas Proyecto",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1640, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-images",
+      "name": "Dividir Imágenes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [1840, 300],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar cada imagen para subida\nconst allData = $input.all()[0].json;\nconst imageData = allData.images_to_upload[allData.batchIndex];\nconst projectId = allData.project_id;\n\n// Generar nombre único para la imagen\nconst imageIndex = allData.batchIndex + 1;\nconst fileName = `image_${imageIndex}_${Date.now()}.${imageData.extension || 'png'}`;\nconst targetPath = `/Documentos compartidos/infografias_assets/${projectId}/${fileName}`;\n\n// Preparar datos de la imagen\nlet imageContent;\nlet contentType;\n\nif (imageData.type === 'base64') {\n  imageContent = imageData.data;\n  contentType = imageData.mimeType || 'image/png';\n} else if (imageData.type === 'url') {\n  // Se manejará en el siguiente nodo\n  imageContent = null;\n  contentType = 'image/png';\n}\n\nreturn {\n  json: {\n    ...allData,\n    current_image: {\n      ...imageData,\n      fileName: fileName,\n      targetPath: targetPath,\n      contentType: contentType,\n      content: imageContent,\n      index: imageIndex\n    }\n  }\n};"
+      },
+      "id": "prepare-image-upload",
+      "name": "Preparar Subida Imagen",
+      "type": "n8n-nodes-base.code",
+      "position": [2040, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-image-type",
+              "leftValue": "={{ $json.current_image.type }}",
+              "rightValue": "url",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-image-source",
+      "name": "¿Es URL o Base64?",
+      "type": "n8n-nodes-base.if",
+      "position": [2240, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.current_image.data }}",
+        "options": {}
+      },
+      "id": "download-image-url",
+      "name": "Descargar Imagen (URL)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2440, 200],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar imagen desde base64\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    ...data,\n    binary_data: {\n      data: Buffer.from(data.current_image.content, 'base64'),\n      mimeType: data.current_image.contentType,\n      fileName: data.current_image.fileName\n    }\n  }\n};"
+      },
+      "id": "process-base64-image",
+      "name": "Procesar Base64",
+      "type": "n8n-nodes-base.code",
+      "position": [2440, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $json.SITE_ID }}/drive/root:{{ $json.current_image.targetPath }}:/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.current_image.contentType }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "upload-image-sharepoint",
+      "name": "Subir Imagen a SharePoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2640, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recopilar todas las imágenes subidas y preparar para Claude\nconst allImages = $input.all();\nconst projectData = allImages[0].json;\n\n// Construir lista de URLs de imágenes en SharePoint\nconst uploadedImages = allImages.map((item, index) => {\n  const baseUrl = `https://${projectData.SHAREPOINT_HOSTNAME}/sites/${projectData.SHAREPOINT_SITE}`;\n  const imagePath = item.json.current_image.targetPath.replace('/Documentos compartidos/', '/');\n  return {\n    index: index + 1,\n    fileName: item.json.current_image.fileName,\n    sharepointUrl: `${baseUrl}/Documentos%20compartidos${imagePath}`,\n    relativePath: `./images/${item.json.current_image.fileName}`,\n    originalType: item.json.current_image.type\n  };\n});\n\n// Preparar prompt para Claude\nconst basePrompt = `\nPrompt para generar Email HTML estilo Prima AFP\n\nInstrucciones principales\nGenera un email HTML completo basado en las imágenes que te comparto. Sigue estas especificaciones técnicas:\n\nEstructura base requerida:\n* DOCTYPE XHTML 1.0 Transitional\n* Tabla principal: 600px de ancho, centrada, bgcolor=\"#FFF\"\n* Fuente principal: Arial, Helvetica, sans-serif\n* Colores corporativos: #FF4F00 (naranja), #45494E (gris oscuro), #1c1c1c (negro)\n\nElementos obligatorios:\n1. **Header**: Imagen de cabecera (600x400px) con enlace\n2. **Saludo**: \"Hola, [Nombre del Cliente]:\" en color #FF4F00, tamaño 24px, bold\n3. **Contenido principal**: Reproduce exactamente el texto y elementos visuales de la imagen\n4. **Footer estándar**:\n   * Logo Credicorp (600x71px)\n   * Texto legal: \"PRIMA AFP S.A. RUC 20510398158\"\n   * Links a redes sociales (Facebook, Instagram, LinkedIn, YouTube)\n   * Link a prima.com.pe\n\nEspecificaciones técnicas:\n* Usar solo tablas para layout (compatible con Outlook)\n* Padding consistente: 50px izquierda y derecha para contenido\n* Espaciado vertical con celdas vacías: <tr><td height=\"20\">&nbsp;</td></tr>\n* Imágenes: Usar rutas relativas \"images/[nombre].png\"\n* Enlaces: Mantener targets=\"_blank\" para links externos\n\nElementos visuales a recrear:\n* Cards/banners con dimensiones exactas de la imagen\n* Iconos con texto alineado (usar tablas de 2 columnas)\n* Botones/CTAs como imágenes con enlaces\n* Colores destacados en texto usando <span style=\"color:#FF4F00\">\n\nInstrucciones específicas:\n* Reproduce EXACTAMENTE el texto visible en la imagen\n* Mantén las proporciones y spacing de los elementos\n* Usa strong/bold para énfasis según se vea en la imagen\n* Conserva la jerarquía visual (tamaños de fuente, colores)\n* Asegúrate de que sea responsive manteniendo la estructura de tabla\n\nImágenes disponibles para usar en el HTML:\n${uploadedImages.map(img => `- ${img.fileName} (usar como: ${img.relativePath})`).join('\\n')}\n\nImportante: Todas las imágenes ya están disponibles en la carpeta \"images/\" relativa al HTML.\n\nFormato de respuesta esperado:\nProporciona el código HTML completo, funcional y listo para usar, con comentarios que indiquen las secciones principales del email.\n`;\n\n// Combinar con prompt personalizado si existe\nconst finalPrompt = projectData.custom_prompt ? \n  `${basePrompt}\\n\\nInstrucciones adicionales del usuario:\\n${projectData.custom_prompt}` : basePrompt;\n\nreturn {\n  json: {\n    ...projectData,\n    uploaded_images: uploadedImages,\n    claude_prompt: finalPrompt,\n    total_uploaded: uploadedImages.length,\n    ready_for_claude: true\n  }\n};"
+      },
+      "id": "prepare-claude-request",
+      "name": "Preparar Request Claude",
+      "type": "n8n-nodes-base.code",
+      "position": [2840, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.CLAUDE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-3-sonnet-20240229"
+            },
+            {
+              "name": "max_tokens",
+              "value": "4000"
+            },
+            {
+              "name": "messages",
+              "value": "=[{\"role\": \"user\", \"content\": $json.claude_prompt}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-claude-api",
+      "name": "Generar HTML con Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [3040, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar respuesta de Claude y preparar archivo HTML\nconst claudeResponse = $input.first().json;\nconst projectData = $input.first().json;\n\n// Extraer el código HTML de la respuesta de Claude\nlet htmlContent = '';\n\nif (claudeResponse.content && claudeResponse.content[0] && claudeResponse.content[0].text) {\n  htmlContent = claudeResponse.content[0].text;\n  \n  // Limpiar el HTML si viene con marcadores de código\n  htmlContent = htmlContent.replace(/```html\\n?/g, '').replace(/```\\n?$/g, '').trim();\n} else {\n  throw new Error('No se pudo extraer el código HTML de la respuesta de Claude');\n}\n\n// Preparar metadata del archivo\nconst timestamp = new Date().toISOString();\nconst htmlFileName = `infografia_${projectData.project_id}_${Date.now()}.html`;\nconst outputPath = `/Documentos compartidos/infografias_html/${projectData.project_id}/${htmlFileName}`;\n\n// Agregar metadata como comentarios al HTML\nconst htmlWithMetadata = `<!-- \n  Infografía generada automáticamente\n  Proyecto: ${projectData.project_name}\n  ID: ${projectData.project_id}\n  Generado: ${timestamp}\n  Imágenes incluidas: ${projectData.total_uploaded}\n-->\n${htmlContent}`;\n\nreturn {\n  json: {\n    ...projectData,\n    generated_html: htmlWithMetadata,\n    html_file_name: htmlFileName,\n    html_output_path: outputPath,\n    generation_timestamp: timestamp,\n    success: true\n  }\n};"
+      },
+      "id": "process-claude-response",
+      "name": "Procesar HTML Generado",
+      "type": "n8n-nodes-base.code",
+      "position": [3240, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $json.SITE_ID }}/drive/root:{{ $json.html_output_path }}:/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/html"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawBody": "={{ $json.generated_html }}",
+        "options": {}
+      },
+      "id": "upload-html-sharepoint",
+      "name": "Subir HTML a SharePoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [3440, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "final-status",
+              "name": "status",
+              "type": "string",
+              "value": "SUCCESS"
+            },
+            {
+              "id": "final-message",
+              "name": "message",
+              "type": "string",
+              "value": "Infografía HTML generada exitosamente"
+            },
+            {
+              "id": "project-info",
+              "name": "project_info",
+              "type": "object",
+              "value": "={\n  \"project_id\": $json.project_id,\n  \"project_name\": $json.project_name,\n  \"images_uploaded\": $json.total_uploaded,\n  \"html_file\": $json.html_file_name,\n  \"generation_time\": $json.generation_timestamp\n}"
+            },
+            {
+              "id": "urls",
+              "name": "access_urls",
+              "type": "object",
+              "value": "={\n  \"html_file\": \"https://\" + $json.SHAREPOINT_HOSTNAME + \"/sites/\" + $json.SHAREPOINT_SITE + $json.html_output_path.replace('/Documentos compartidos', '/Shared%20Documents'),\n  \"images_folder\": \"https://\" + $json.SHAREPOINT_HOSTNAME + \"/sites/\" + $json.SHAREPOINT_SITE + \"/Shared%20Documents/infografias_assets/\" + $json.project_id,\n  \"project_folder\": \"https://\" + $json.SHAREPOINT_HOSTNAME + \"/sites/\" + $json.SHAREPOINT_SITE + \"/Shared%20Documents/infografias_html/\" + $json.project_id\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "final-success-response",
+      "name": "Respuesta Final Exitosa",
+      "type": "n8n-nodes-base.set",
+      "position": [3640, 300],
+      "typeVersion": 3.4
+    }
+  ],
+  "connections": {
+    "Webhook - Recibir Datos": {
+      "main": [
+        [
+          {
+            "node": "Configurar Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar Variables": {
+      "main": [
+        [
+          {
+            "node": "Procesar Datos Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Datos Entrada": {
+      "main": [
+        [
+          {
+            "node": "Autenticación SharePoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticación SharePoint": {
+      "main": [
+        [
+          {
+            "node": "Obtener Site ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Site ID": {
+      "main": [
+        [
+          {
+            "node": "Preparar Estructura Carpetas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Estructura Carpetas": {
+      "main": [
+        [
+          {
+            "node": "Dividir Carpetas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dividir Carpetas": {
+      "main": [
+        [
+          {
+            "node": "Crear Carpetas Proyecto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Carpetas Proyecto": {
+      "main": [
+        [
+          {
+            "node": "Dividir Imágenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dividir Imágenes": {
+      "main": [
+        [
+          {
+            "node": "Preparar Subida Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Subida Imagen": {
+      "main": [
+        [
+          {
+            "node": "¿Es URL o Base64?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es URL o Base64?": {
+      "main": [
+        [
+          {
+            "node": "Descargar Imagen (URL)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Procesar Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Imagen (URL)": {
+      "main": [
+        [
+          {
+            "node": "Subir Imagen a SharePoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Base64": {
+      "main": [
+        [
+          {
+            "node": "Subir Imagen a SharePoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir Imagen a SharePoint": {
+      "main": [
+        [
+          {
+            "node": "Preparar Request Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Request Claude": {
+      "main": [
+        [
+          {
+            "node": "Generar HTML con Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar HTML con Claude": {
+      "main": [
+        [
+          {
+            "node": "Procesar HTML Generado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar HTML Generado": {
+      "main": [
+        [
+          {
+            "node": "Subir HTML a SharePoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir HTML a SharePoint": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Final Exitosa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "new-version-infografia-generator",
+  "meta": {
+    "instanceId": "infografia-generator-instance"
+  },
+  "id": "InfografiaGeneratorV2",
+  "tags": ["infografia", "html", "claude", "sharepoint"]
+}
