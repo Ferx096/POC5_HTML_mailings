@@ -123,6 +123,7 @@ graph TD
 - `Sites.ReadWrite.All` - Lectura/escritura en sitios SharePoint
 - `Files.ReadWrite.All` - Gestión completa de archivos
 - `offline_access` - Tokens de actualización
+  ![Permisos](documentation/permissions.png)
 
 ### 2. Claude API (Anthropic)
 
