@@ -176,10 +176,10 @@ graph TD
 
 | Métrica | Valor |
 |---------|--------|
-| Tiempo promedio de ejecución | 15-25 segundos |
+| Tiempo promedio de ejecución | 50-120 segundos |
 | Tamaño máximo por archivo | 50MB |
 | Número máximo de imágenes | ~50 (práctico) |
-| Tasa de éxito | >95% |
+| Tasa de éxito | >=80% |
 
 ## 🔗 Enlaces Relacionados
 
