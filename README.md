@@ -2,6 +2,8 @@
 
 > Sistema automatizado para la creación de emails HTML corporativos para Prima AFP, procesando imágenes y generando código HTML compatible con clientes de correo antiguos.
 
+> [Detalles de informe tecnico](informe-tecnico-n8n.md)
+
 ## 📋 Tabla de Contenidos
 
 - [Arquitectura General](#arquitectura-general-del-flujo)
