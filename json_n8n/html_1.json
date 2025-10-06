@@ -1,0 +1,768 @@
+{
+  "name": "html_1",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Código que busca los datos binarios del nodo correcto\nconst inputItems = $input.all();\n\nconsole.log('=== DEBUG PREPARAR INFOGRAFÍA ===');\nconsole.log('Input actual tiene binary?', !!inputItems[0].binary);\n\n// Intentar obtener los datos binarios del nodo Procesar FormData\nlet binaryData = inputItems[0].binary;\nlet projectData = inputItems[0].json;\n\n// Si no hay binarios, buscarlos en el nodo anterior correcto\nif (!binaryData || Object.keys(binaryData).length === 0) {\n  console.log('No hay binarios en input actual, buscando en Procesar FormData...');\n  \n  try {\n    // Obtener datos del nodo \"Procesar FormData\"\n    const procesarFormDataItems = $('Procesar FormData1').all();\n    if (procesarFormDataItems && procesarFormDataItems[0]) {\n      binaryData = procesarFormDataItems[0].binary;\n      // También obtener metadata de imágenes\n      const imageMetadata = procesarFormDataItems[0].json;\n      projectData = {\n        ...projectData,\n        ...imageMetadata\n      };\n      console.log('✓ Binarios recuperados de Procesar FormData:', Object.keys(binaryData || {}));\n    }\n  } catch (e) {\n    console.log('Error al acceder a Procesar FormData:', e.message);\n  }\n}\n\n// Verificar si ahora tenemos binarios\nif (!binaryData || Object.keys(binaryData).length === 0) {\n  throw new Error('No se encontraron datos binarios. Verifica que las imágenes se hayan cargado correctamente en el webhook.');\n}\n\nconsole.log('Binarios disponibles:', Object.keys(binaryData));\n\n// LÓGICA DE SELECCIÓN - Buscar imagen que empiece con \"Email\"\nlet selectedBinaryKey = null;\nlet selectedMetadata = null;\n\n// Buscar por nombre \"Email\"\nfor (const [key, file] of Object.entries(binaryData)) {\n  if (file.fileName && file.fileName.toLowerCase().startsWith('email')) {\n    selectedBinaryKey = key;\n    selectedMetadata = {\n      fileName: file.fileName,\n      mimeType: file.mimeType,\n      originalKey: key\n    };\n    console.log(`✓ ENCONTRADA imagen \"Email\": ${file.fileName}`);\n    break;\n  }\n}\n\n// Si no hay imagen \"Email\", usar la primera\nif (!selectedBinaryKey) {\n  selectedBinaryKey = Object.keys(binaryData)[0];\n  const file = binaryData[selectedBinaryKey];\n  selectedMetadata = {\n    fileName: file.fileName,\n    mimeType: file.mimeType,\n    originalKey: selectedBinaryKey\n  };\n  console.log(`⚠️ No se encontró imagen \"Email\", usando: ${file.fileName}`);\n}\n\n// Generar nombre limpio y rutas\nconst cleanFileName = `infografia_${selectedMetadata.fileName.replace(/[^a-zA-Z0-9\\.]/g, '_')}`;\nconst projectId = projectData.project_id || `proyecto_${Date.now()}`;\nconst infografiaFolder = `/Documentos compartidos/HTML_Mailings/${projectId}/infografia`;\nconst targetPath = `${infografiaFolder}/${cleanFileName}`;\n\nconsole.log(`✓ Infografía seleccionada: ${selectedMetadata.fileName}`);\nconsole.log(`✓ Se guardará como: ${cleanFileName}`);\n\nreturn [{\n  json: {\n    ...projectData,\n    project_id: projectId,\n    infografia_uploaded: {\n      ...selectedMetadata,\n      cleanFileName: cleanFileName,\n      targetPath: targetPath,\n      relativePath: `./infografia/${cleanFileName}`,\n      selectionMethod: selectedMetadata.fileName.toLowerCase().startsWith('email') ? 'by_email_name' : 'fallback_first_image'\n    },\n    INFOGRAFIA_FOLDER: infografiaFolder\n  },\n  binary: {\n    data: binaryData[selectedBinaryKey]\n  }\n}];"
+      },
+      "id": "124f5b18-d096-410c-9899-99d75a6eba36",
+      "name": "Preparar Infografía",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -288,
+        2016
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $('Preparar Estructura Carpetas1').first().json.SITE_ID }}/drive/root:{{ $json.infografia_uploaded.targetPath }}:/content\n\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $binary.data.mimeType }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "70e23b1d-c7d2-4612-aa19-be97ed5d235c",
+      "name": "Subir Infografía",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -48,
+        1984
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// NODO: Preparar Elemento - VERSIÓN CORREGIDA\n// Este código prepara TODOS los elementos EXCEPTO la infografía (imágenes que empiezan con \"Email\")\n\nconst inputItems = $input.all();\n\nconsole.log('=== DEBUG PREPARAR ELEMENTOS (NO INFOGRAFÍA) ===');\nconsole.log('Input actual tiene binary?', !!inputItems[0].binary);\n\n// Obtener los datos binarios y del proyecto\nlet binaryData = inputItems[0].binary;\nlet projectData = inputItems[0].json;\n\n// Si no hay binarios en el input actual, buscarlos en el nodo Procesar FormData\nif (!binaryData || Object.keys(binaryData).length === 0) {\n  console.log('No hay binarios en input actual, buscando en Procesar FormData...');\n  \n  try {\n    const procesarFormDataItems = $('Procesar FormData1').all();\n    if (procesarFormDataItems && procesarFormDataItems[0]) {\n      binaryData = procesarFormDataItems[0].binary;\n      const imageMetadata = procesarFormDataItems[0].json;\n      projectData = {\n        ...projectData,\n        ...imageMetadata\n      };\n      console.log('✓ Binarios recuperados de Procesar FormData:', Object.keys(binaryData || {}));\n    }\n  } catch (e) {\n    console.log('Error al acceder a Procesar FormData:', e.message);\n  }\n}\n\n// Verificar que tenemos binarios\nif (!binaryData || Object.keys(binaryData).length === 0) {\n  console.log('⚠️ No se encontraron datos binarios');\n  return [{\n    json: {\n      ...projectData,\n      no_elements: true,\n      elements_count: 0,\n      message: 'No hay elementos adicionales para procesar'\n    }\n  }];\n}\n\nconsole.log('Binarios disponibles:', Object.keys(binaryData));\n\n// LÓGICA DE SELECCIÓN - Filtrar todas las imágenes EXCEPTO las que empiecen con \"Email\"\nconst elementosParaProcesar = [];\n\nfor (const [key, file] of Object.entries(binaryData)) {\n  // EXCLUIR imágenes que empiecen con \"Email\" (son infografías)\n  if (file.fileName && !file.fileName.toLowerCase().startsWith('email')) {\n    elementosParaProcesar.push({\n      binaryKey: key,\n      fileName: file.fileName,\n      mimeType: file.mimeType || 'image/jpeg',\n      originalName: file.fileName,\n      binaryData: file\n    });\n    console.log(`✓ Elemento añadido: ${file.fileName}`);\n  } else {\n    console.log(`⚠️ Excluido (es infografía): ${file.fileName}`);\n  }\n}\n\n// Si no hay elementos adicionales para procesar\nif (elementosParaProcesar.length === 0) {\n  console.log('ℹ️ No hay elementos adicionales (solo infografía)');\n  return [{\n    json: {\n      ...projectData,\n      no_elements: true,\n      elements_count: 0,\n      message: 'Solo se encontró la infografía principal, no hay elementos adicionales'\n    }\n  }];\n}\n\nconsole.log(`📄 Total elementos a procesar: ${elementosParaProcesar.length}`);\n\n// Configurar carpeta de destino\nconst projectId = projectData.project_id || `proyecto_${Date.now()}`;\nconst elementosFolder = projectData.ELEMENTOS_FOLDER || `/Documentos compartidos/HTML_Mailings/${projectId}/elementos`;\n\n// Preparar array de resultados - UN ITEM POR CADA ELEMENTO\nconst results = [];\nconst allProcessedElements = [];\n\nfor (let i = 0; i < elementosParaProcesar.length; i++) {\n  const elemento = elementosParaProcesar[i];\n  \n  // Generar nombre limpio para el elemento\n  const cleanFileName = `elemento_${String(i + 1).padStart(2, '0')}_${elemento.fileName.replace(/[^a-zA-Z0-9\\.]/g, '_')}`;\n  const targetPath = `${elementosFolder}/${cleanFileName}`;\n  const relativePath = `./elementos/${cleanFileName}`;\n  \n  // Crear metadata del elemento procesado\n  const processedElement = {\n    fileName: elemento.fileName,\n    cleanFileName: cleanFileName,\n    targetPath: targetPath,\n    relativePath: relativePath,\n    mimeType: elemento.mimeType,\n    originalKey: elemento.binaryKey,\n    uploadIndex: i + 1,\n    totalElements: elementosParaProcesar.length\n  };\n  \n  allProcessedElements.push(processedElement);\n  \n  console.log(`✓ Preparado elemento ${i + 1}/${elementosParaProcesar.length}: ${cleanFileName}`);\n  \n  // Crear resultado individual con el binario correspondiente\n  results.push({\n    json: {\n      ...projectData,\n      element_uploaded: processedElement,\n      current_element: processedElement,\n      element_index: i,\n      total_elements: elementosParaProcesar.length,\n      is_last: i === elementosParaProcesar.length - 1,\n      all_processed_elements: allProcessedElements,\n      ELEMENTOS_FOLDER: elementosFolder\n    },\n    binary: {\n      data: elemento.binaryData\n    }\n  });\n}\n\nconsole.log('=== RESUMEN PROCESAMIENTO ELEMENTOS ===');\nconsole.log(`✅ Total elementos preparados: ${results.length}`);\nconsole.log(`📁 Carpeta destino: ${elementosFolder}`);\n\n// Retornar todos los elementos preparados\nreturn results;"
+      },
+      "id": "32963fe7-09bc-4727-a04b-ba2e2608c225",
+      "name": "Preparar Elemento",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -288,
+        2304
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $('Preparar Estructura Carpetas1').first().json.SITE_ID }}/drive/root:{{ $json.element_uploaded.targetPath }}:/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autenticar SharePoint1').first().json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $binary.data.mimeType }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "7879ac75-5583-465f-b1bd-df5378279fe0",
+      "name": "Subir Elemento",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -144,
+        2304
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        128,
+        2192
+      ],
+      "id": "ee268c55-5183-4b55-b5f5-05fec587f791",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -480,
+        2064
+      ],
+      "id": "11f69d57-7dc5-497c-9f77-35245b6bc428",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "content": "1. INPUT PROCESSOR:\nProcesar imagenes del frontend",
+        "height": 80,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1680,
+        2048
+      ],
+      "typeVersion": 1,
+      "id": "d411b63e-b599-4432-910d-c0df3166c11e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "2- ACTIVAR CREDENCIALES:\n- api  sharepoint\n- api microsoft graph\n- api Claude",
+        "height": 112,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1264,
+        2016
+      ],
+      "typeVersion": 1,
+      "id": "276d20ec-151e-4081-a2f9-782290799b59",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "3-  CREAR ESTRUCTURA DE CARPETAS:\n- Carpeta general\n- Carpeta para infografia\n- C para elementos\n- c. para codigo html",
+        "height": 128,
+        "width": 416
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -944,
+        2384
+      ],
+      "typeVersion": 1,
+      "id": "35e0b8a4-ff82-4463-aa97-27613126e11c",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "4.2:  SUBIR IMAGENES DE ELEMENTOS RESTANTES A SHAREPOINT",
+        "height": 80,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -288,
+        2432
+      ],
+      "typeVersion": 1,
+      "id": "14b2061b-d644-43a1-ba79-fe79de82bf66",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "6: FINAL\n- Subir codigo generado a sharepoint",
+        "height": 80,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        2096
+      ],
+      "typeVersion": 1,
+      "id": "bc8c7498-7d59-458e-a0ec-732f3960e372",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NODO: Inyectar URLs SharePoint\n// Colocar DESPUÉS de que todas las imágenes se hayan subido\nlet htmlContent;\ntry {\n  htmlContent = $('Procesar HTML con placeholder').first().json.html_con_placeholders;\n} catch (e) {\n  throw new Error(\"Nodo 'Procesar HTML con placeholder' no existe o no tiene salida.\");\n}\n\n// Obtener URLs reales de SharePoint\nconst urlMapping = {};\n\n// Desde Subir Infografía\ntry {\n  const infografia = $('Subir Infografía').first().json;\n  if (infografia && infografia.webUrl) {\n    // La infografía principal normalmente sería el header\n    urlMapping['{{CABECERA_URL}}'] = infografia.webUrl;\n    console.log('✓ Infografía mapeada como cabecera');\n  }\n} catch (e) {\n  console.log('No se pudo obtener infografía');\n}\n\n// Desde Subir Elemento - MAPEO INTELIGENTE\ntry {\n  const elementos = $('Subir Elemento').all();\n  if (!elementos || !Array.isArray(elementos)) {\n    throw new Error(\"'Subir Elemento' no tiene elementos de salida.\");\n  }\n  \n  // Mapeo por nombre de archivo PRIMERO\n  elementos.forEach(item => {\n    if (item.json && item.json.name) {\n      const fileName = item.json.name.toLowerCase();\n      const url = item.json.webUrl;\n      \n      // Mapeo basado en nombres\n      if (fileName.includes('banner') && !urlMapping['{{BANNER_URL}}']) {\n        urlMapping['{{BANNER_URL}}'] = url;\n      } else if (fileName.includes('cabecera') && !urlMapping['{{CABECERA_URL}}']) {\n        urlMapping['{{CABECERA_URL}}'] = url;\n      } else if (fileName.includes('credicorp') && !urlMapping['{{CREDICORP_URL}}']) {\n        urlMapping['{{CREDICORP_URL}}'] = url;\n      } else if (fileName.includes('cuadro') && !urlMapping['{{CUADRO_URL}}']) {\n        urlMapping['{{CUADRO_URL}}'] = url;\n      } else if (fileName.includes('icon1') && !urlMapping['{{ICON1_URL}}']) {\n        urlMapping['{{ICON1_URL}}'] = url;\n      } else if (fileName.includes('icon2') && !urlMapping['{{ICON2_URL}}']) {\n        urlMapping['{{ICON2_URL}}'] = url;\n      } else if (fileName.includes('icon3') && !urlMapping['{{ICON3_URL}}']) {\n        urlMapping['{{ICON3_URL}}'] = url;\n      } else if (fileName.includes('facebook') && !urlMapping['{{FACEBOOK_URL}}']) {\n        urlMapping['{{FACEBOOK_URL}}'] = url;\n      } else if (fileName.includes('instagram') && !urlMapping['{{INSTAGRAM_URL}}']) {\n        urlMapping['{{INSTAGRAM_URL}}'] = url;\n      } else if (fileName.includes('linkedin') && !urlMapping['{{LINKEDIN_URL}}']) {\n        urlMapping['{{LINKEDIN_URL}}'] = url;\n      } else if (fileName.includes('youtube') && !urlMapping['{{YOUTUBE_URL}}']) {\n        urlMapping['{{YOUTUBE_URL}}'] = url;\n      }\n    }\n  });\n  \n  // Mapeo por posición SI faltan elementos críticos\n  if (!urlMapping['{{CABECERA_URL}}'] && elementos.length > 0) {\n    urlMapping['{{CABECERA_URL}}'] = elementos[0].json.webUrl;\n    console.log('✓ Primera imagen asignada como cabecera');\n  }\n  \n  if (!urlMapping['{{CREDICORP_URL}}'] && elementos.length > 0) {\n    // Buscar imagen con \"credicorp\" o usar la última\n    const credicorpImg = elementos.find(item => \n      item.json.name && item.json.name.toLowerCase().includes('credicorp')\n    );\n    urlMapping['{{CREDICORP_URL}}'] = credicorpImg \n      ? credicorpImg.json.webUrl \n      : elementos[elementos.length - 1].json.webUrl;\n  }\n  \n  // Asignar iconos genéricos a imágenes no mapeadas\n  let iconCounter = 1;\n  elementos.forEach(item => {\n    const url = item.json.webUrl;\n    // Si esta URL no está ya mapeada\n    if (!Object.values(urlMapping).includes(url) && iconCounter <= 3) {\n      urlMapping[`{{ICON${iconCounter}_URL}}`] = url;\n      iconCounter++;\n    }\n  });\n  \n} catch (e) {\n  console.log('Error mapeando elementos:', e.message);\n}\n\n// URLs por defecto para redes sociales FUERA del bucle\nconst defaultSocialUrls = {\n  '{{FACEBOOK_URL}}': 'https://www.facebook.com/PrimaAFP',\n  '{{INSTAGRAM_URL}}': 'https://www.instagram.com/primaafp/',\n  '{{LINKEDIN_URL}}': 'https://pe.linkedin.com/company/prima-afp',\n  '{{YOUTUBE_URL}}': 'https://www.youtube.com/user/AFPPrima'\n};\n\n// Aplicar URLs por defecto solo si no existen\nObject.keys(defaultSocialUrls).forEach(key => {\n  if (!urlMapping[key]) {\n    urlMapping[key] = defaultSocialUrls[key];\n  }\n});\n\n// URL por defecto para cuadro decorativo\nif (!urlMapping['{{CUADRO_URL}}']) {\n  urlMapping['{{CUADRO_URL}}'] = '#'; // O una imagen placeholder\n}\n\n// Reemplazar placeholders con URLs reales\nObject.keys(urlMapping).forEach(placeholder => {\n  const url = urlMapping[placeholder];\n  htmlContent = htmlContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\\\$&'), 'g'), url);\n  console.log(`✓ Reemplazado: ${placeholder}`);\n});\n\n// Verificar placeholders no reemplazados\nconst remaining = htmlContent.match(/\\{\\{[A-Z_]+_URL\\}\\}/g) || [];\nif (remaining.length > 0) {\n  console.log(`⚠️ Placeholders sin reemplazar: ${remaining.join(', ')}`);\n  remaining.forEach(placeholder => {\n    htmlContent = htmlContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\\\$&'), 'g'), '#');\n  });\n}\n\n// Preparar respuesta final\nlet projectId, projectName;\ntry {\n  const formData = $('Procesar FormData').first().json;\n  projectId = formData.project_id;\n  projectName = formData.project_name;\n} catch(e) {\n  projectId = '';\n  projectName = 'proyecto_desconocido';\n}\nconst timestamp = new Date().toISOString();\n\n// HTML final con comentarios\nconst finalHtml = `<!-- \n  Generado: ${timestamp}\n  Proyecto: ${projectName}\n  ID: ${projectId}\n  URLs mapeadas: ${Object.keys(urlMapping).length}\n-->\n${htmlContent}`;\n\nreturn {\n  json: {\n    generated_html: finalHtml,\n    html_file_name: `${projectName}_email.html`,\n    urls_mapeadas: urlMapping,\n    urls_reemplazadas: Object.keys(urlMapping).length,\n    placeholders_restantes: remaining.length,\n    ready_to_upload: true\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        1952
+      ],
+      "id": "4a7fd028-ab6f-4884-9e4b-eaf99689ce05",
+      "name": "URLs sharepoint"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NODO: Procesar HTML - VERSIÓN CORREGIDA PARA ELIMINAR NARRATIVA\nconst response = $input.first().json;\nconst projectData = response;\n\n// Extraer HTML de Claude\nlet htmlContent = '';\nif (response.content && Array.isArray(response.content)) {\n  htmlContent = response.content[0].text || response.content[0];\n}\n\n// ELIMINAR TODA LA NARRATIVA DE CLAUDE\n// 1. Encontrar donde empieza el HTML real\nconst htmlStart = htmlContent.indexOf('<!DOCTYPE');\nconst htmlEnd = htmlContent.lastIndexOf('</html>') + 7;\n\nif (htmlStart !== -1 && htmlEnd > htmlStart) {\n  // Extraer SOLO el HTML\n  htmlContent = htmlContent.substring(htmlStart, htmlEnd);\n} else {\n  // Si no encuentra DOCTYPE, intentar con <html\n  const altStart = htmlContent.indexOf('<html');\n  if (altStart !== -1) {\n    htmlContent = htmlContent.substring(altStart, htmlEnd);\n  }\n}\n\n// Limpiar cualquier marcador de código markdown residual\nhtmlContent = htmlContent\n  .replace(/```html\\n?/gi, '')\n  .replace(/```\\n?$/gi, '')\n  .replace(/^```\\n?/gi, '')\n  .trim();\n\n// VALIDACIÓN DE ESTRUCTURA PRIMA AFP\nconst validationErrors = [];\n\nif (!htmlContent.includes('width=\"600\"')) {\n  validationErrors.push('Falta tabla principal de 600px');\n}\nif (!htmlContent.includes('#FF4F00')) {\n  validationErrors.push('Falta color naranja corporativo');\n}\nif (!htmlContent.includes('PRIMA AFP S.A. RUC')) {\n  validationErrors.push('Falta footer legal');\n}\nif (!htmlContent.includes('[Nombre del Cliente]')) {\n  validationErrors.push('Falta placeholder de personalización');\n}\n\n// Log de advertencias\nif (validationErrors.length > 0) {\n  console.log('⚠️ Advertencias de validación:', validationErrors);\n}\n\n// Validar placeholders\nconst placeholders = htmlContent.match(/\\{\\{[A-Z_]+_URL\\}\\}/g) || [];\nconsole.log(`Placeholders encontrados: ${placeholders.length}`);\n\n// Verificar que es HTML válido\nconst isValidHTML = htmlContent.startsWith('<!DOCTYPE') || htmlContent.startsWith('<html');\nif (!isValidHTML) {\n  console.log('⚠️ ADVERTENCIA: El contenido no parece ser HTML válido');\n}\n\n// RETURN con HTML limpio\nreturn {\n  json: {\n    ...projectData,\n    html_con_placeholders: htmlContent,\n    placeholders_encontrados: placeholders,\n    validation_errors: validationErrors,\n    validation_passed: validationErrors.length === 0,\n    necesita_reemplazo: true,\n    is_valid_html: isValidHTML\n  }\n};"
+      },
+      "id": "409f6e07-99f7-4855-9e46-6ca09fccf480",
+      "name": "Procesar HTML con placeholder",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        496,
+        2080
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-infografia",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "rawBody": true
+        }
+      },
+      "id": "b1e017f9-e6c4-469e-bc1d-9e98b73fbe85",
+      "name": "Webhook FormData1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1712,
+        2160
+      ],
+      "webhookId": "9a1ce852-b993-465b-8ff8-a5c4cc3a72e3",
+      "notes": "Recibe FormData del frontend con archivos - CONFIGURACIÓN CORREGIDA"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar FormData con manejo correcto de filesystem-v2\nconst items = $input.all();\n\nconsole.log('=== DEBUG PROCESAR FORMDATA ===');\nconsole.log('Número de items recibidos:', items.length);\n\nif (!items || items.length === 0) {\n  throw new Error('No se recibieron datos en el webhook');\n}\n\nconst inputData = items[0];\nconsole.log('Tiene datos binarios:', !!inputData.binary);\nconsole.log('Claves binarias:', inputData.binary ? Object.keys(inputData.binary) : 'ninguna');\n\n// Variables para datos procesados\nlet formData = {};\nlet files = {};\nlet projectName = null;\n\n// Procesar datos del body\nif (inputData.json) {\n  formData = inputData.json;\n  console.log('✓ Usando json para formData');\n}\n\n// IMPORTANTE: Los archivos binarios están directamente en inputData.binary\nif (inputData.binary) {\n  files = inputData.binary;\n  console.log('✓ Archivos binarios encontrados:', Object.keys(files));\n}\n\n// Buscar projectName\nprojectName = formData.projectName || \n              inputData.json?.projectName ||\n              inputData.query?.projectName ||\n              `proyecto_${Date.now()}`;\n\nconsole.log(`✓ Proyecto: ${projectName}`);\n\n// Procesar todas las imágenes\nconst allImages = [];\nlet imageCount = 0;\n\n// Procesar cada archivo binario\nObject.keys(files).forEach(key => {\n  console.log(`Procesando archivo: ${key}`);\n  const fileData = files[key];\n  \n  if (fileData) {\n    // No intentar acceder a fileData.data cuando es filesystem-v2\n    // Solo registrar la metadata\n    const imageInfo = {\n      fileName: fileData.fileName || `imagen_${imageCount + 1}.jpg`,\n      mimeType: fileData.mimeType || 'image/jpeg',\n      originalName: fileData.fileName,\n      index: imageCount,\n      source: 'binary',\n      binaryKey: key, // Guardar la clave para referencia\n      // NO incluir data aquí - se manejará a través del binary\n    };\n    \n    // Verificar si es filesystem-v2\n    if (fileData.data === 'filesystem-v2') {\n      imageInfo.isFilesystemRef = true;\n      console.log(`✓ Imagen ${key} está en filesystem-v2`);\n    }\n    \n    allImages.push(imageInfo);\n    imageCount++;\n  }\n});\n\nconsole.log(`Total imágenes procesadas: ${allImages.length}`);\n\n// Identificar la infografía (la imagen más grande o con nombre específico)\nlet infografiaImage = allImages.find(img => \n  img.fileName.toLowerCase().includes('email') || \n  img.fileName.toLowerCase().includes('infografia')\n);\n\nif (!infografiaImage && allImages.length > 0) {\n  // Si no hay una imagen específica, usar la primera\n  infografiaImage = allImages[0];\n  console.log('Usando primera imagen como infografía');\n}\n\n// Separar elementos\nconst elementImages = allImages.filter(img => img !== infografiaImage);\n\n// Generar ID único del proyecto\nconst projectId = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;\nconst timestamp = new Date().toISOString();\n\nconsole.log('=== RESUMEN FINAL ===');\nconsole.log(`Proyecto: ${projectName} (ID: ${projectId})`);\nconsole.log(`Total imágenes: ${allImages.length}`);\nconsole.log(`Infografía: ${infografiaImage?.fileName || 'ninguna'}`);\nconsole.log(`Elementos adicionales: ${elementImages.length}`);\n\n// IMPORTANTE: Retornar en el formato correcto de n8n\nreturn [{\n  json: {\n    project_id: projectId,\n    project_name: projectName,\n    timestamp: timestamp,\n    infografia_metadata: infografiaImage,\n    element_metadata: elementImages,\n    total_images: allImages.length,\n    all_images_metadata: allImages,\n    ready_for_processing: true\n  },\n  // Pasar los binarios sin modificación\n  binary: files\n}];"
+      },
+      "id": "1e83cf72-a213-412c-a932-ad629f188192",
+      "name": "Procesar FormData1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1520,
+        2160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant-id",
+              "name": "TENANT_ID",
+              "type": "string",
+              "value": "API-ID"
+            },
+            {
+              "id": "client-id",
+              "name": "CLIENT_ID",
+              "type": "string",
+              "value": "API-CLIENT-ID"
+            },
+            {
+              "id": "client-secret",
+              "name": "CLIENT_SECRET",
+              "type": "string",
+              "value": "SECRET-MICROSOFT APLCAICION"
+            },
+            {
+              "id": "sharepoint-host",
+              "name": "SHAREPOINT_HOSTNAME",
+              "type": "string",
+              "value": "netorgft4158062.sharepoint.com"
+            },
+            {
+              "id": "sharepoint-site",
+              "name": "SHAREPOINT_SITE",
+              "type": "string",
+              "value": "RespuestasdeFormulariodetraspasos"
+            },
+            {
+              "id": "claude-api-key",
+              "name": "CLAUDE_API_KEY",
+              "type": "string",
+              "value": "API-CLAUDE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c719a8a6-6e1f-4dbc-91a4-c886b33e4816",
+      "name": "Configurar Credenciales1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1296,
+        2160
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://login.microsoftonline.com/{{ $json.TENANT_ID }}/oauth2/v2.0/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $json.CLIENT_ID }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $json.CLIENT_SECRET }}"
+            },
+            {
+              "name": "scope",
+              "value": "https://graph.microsoft.com/.default"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "94966561-f881-4c93-964b-589b08a6508d",
+      "name": "Autenticar SharePoint1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1104,
+        2160
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $('Configurar Credenciales1').item.json.SHAREPOINT_HOSTNAME }}:/sites/{{ $('Configurar Credenciales1').item.json.SHAREPOINT_SITE }}:",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4ded58d4-2a2d-4a30-acf3-ddaeb0c9d10a",
+      "name": "Obtener Info Site1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -944,
+        2224
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar estructura de carpetas organizada por proyecto - VERSIÓN MEJORADA\nconst projectData = $input.first().json;\nconst siteId = projectData.id;\nconst accessToken = projectData.access_token;\nconst projectId = projectData.project_id;\n\n// NUEVA ESTRUCTURA: Carpeta individual por ejecución\nconst baseFolder = `/Documentos compartidos/HTML_Mailings`;\nconst projectFolder = `${baseFolder}/${projectId}`; // Carpeta única por ejecución\nconst infografiaFolder = `${projectFolder}/infografia`; // Solo para la imagen principal\nconst elementosFolder = `${projectFolder}/elementos`; // Para imágenes adicionales\nconst outputFolder = projectFolder; // HTML se guarda en la raíz del proyecto\n\nconsole.log('📁 NUEVA ESTRUCTURA DE CARPETAS:');\nconsole.log(`   Base: ${baseFolder}`);\nconsole.log(`   Proyecto: ${projectFolder}`);\nconsole.log(`   Infografía: ${infografiaFolder}`);\nconsole.log(`   Elementos: ${elementosFolder}`);\nconsole.log(`   Salida HTML: ${outputFolder}`);\n\nreturn {\n  json: {\n    ...projectData,\n    SITE_ID: siteId,\n    access_token: accessToken,\n    BASE_FOLDER: baseFolder,\n    PROJECT_FOLDER: projectFolder,\n    INFOGRAFIA_FOLDER: infografiaFolder,\n    ELEMENTOS_FOLDER: elementosFolder,\n    OUTPUT_FOLDER: outputFolder,\n    folders_structure: [\n      {\n        path: baseFolder,\n        name: 'HTML_Mailings',\n        parent: '/Documentos compartidos',\n        description: 'Carpeta base para todos los proyectos'\n      },\n      {\n        path: projectFolder,\n        name: projectId,\n        parent: baseFolder,\n        description: 'Carpeta única del proyecto actual'\n      },\n      {\n        path: infografiaFolder,\n        name: 'infografia',\n        parent: projectFolder,\n        description: 'Solo para la imagen principal (más pesada)'\n      },\n      {\n        path: elementosFolder,\n        name: 'elementos',\n        parent: projectFolder,\n        description: 'Para imágenes adicionales/elementos'\n      }\n    ]\n  }\n};"
+      },
+      "id": "79ceebc6-593a-40ab-9f0a-89fb9844d5b3",
+      "name": "Preparar Estructura Carpetas1",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -784,
+        2224
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// NODO: Preparar Prompt Claude - VERSIÓN PRODUCCIÓN\nconst allInputs = $input.all();\n\n// Obtener datos del proyecto\nlet projectData = {};\nlet elementosData = [];\nlet infografiaBinary = null;\n\n// 1. Datos del proyecto\ntry {\n  const formDataNode = $('Procesar FormData1').first().json;\n  if (formDataNode) {\n    projectData.project_id = formDataNode.project_id;\n    projectData.project_name = formDataNode.project_name;\n  }\n} catch (e) {\n  console.log('Error obteniendo proyecto:', e.message);\n}\n\n// 2. Obtener imagen infografía desde Preparar Infografía\ntry {\n  const prepararInfografia = $('Preparar Infografía').first();\n  if (prepararInfografia && prepararInfografia.binary && prepararInfografia.binary.data) {\n    infografiaBinary = prepararInfografia.binary.data;\n    console.log('✓ Imagen infografía obtenida para Claude');\n  }\n} catch (e) {\n  console.log('Error obteniendo infografía:', e.message);\n}\n\n// 3. Obtener lista de elementos subidos (para referencia)\ntry {\n  const subirElementoItems = $('Subir Elemento').all();\n  if (subirElementoItems) {\n    subirElementoItems.forEach(item => {\n      if (item.json && item.json.webUrl) {\n        elementosData.push({\n          fileName: item.json.name,\n          webUrl: item.json.webUrl\n        });\n      }\n    });\n  }\n} catch (e) {\n  console.log('No hay elementos:', e.message);\n}\n\n// 4. PROMPT MEJORADO - REEMPLAZAR SOLO ESTA PARTE\nconst claudePrompt = `Eres un experto desarrollador de emails HTML para Prima AFP con 10 años de experiencia.\n\nTAREA: Analiza la infografía y genera HTML que la reproduzca EXACTAMENTE siguiendo los estándares de Prima AFP.\n\nESTRUCTURA HTML OBLIGATORIA:\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>AFP Prima</title>\n</head>\n<body>\n  <table width=\"600\" border=\"0\" bgcolor=\"#FFF\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n    <!-- CONTENIDO AQUÍ -->\n  </table>\n</body>\n</html>\n\nSECCIONES ESTÁNDAR PRIMA AFP:\n\n1. HEADER (600x400px):\n<tr>\n  <td><a href=\"#\"><img src=\"{{CABECERA_URL}}\" width=\"600\" height=\"400\" alt=\"\"/></a></td>\n</tr>\n\n2. SALUDO PERSONALIZADO:\n<tr>\n  <td style=\"text-align: left; font-size: 24px; font-family: Arial, Helvetica, sans-serif; color: #FF4F00; padding: 30px 50px 0 50px\">\n    <strong>Hola, [Nombre del Cliente]:</strong>\n  </td>\n</tr>\n\n3. CONTENIDO PRINCIPAL (extraer de imagen):\n- Padding lateral: SIEMPRE 50px\n- Font-family: SIEMPRE Arial, Helvetica, sans-serif\n- Tamaños: 24px (títulos), 18px (texto)\n- Colores: #FF4F00 (naranja brand), #45494E (gris texto), #1c1c1c (títulos oscuros)\n- Espaciados: <td width=\"23px\">&nbsp;</td>\n\n4. LISTAS CON ICONOS (si aparecen):\n<table width=\"500\" align=\"center\">\n  <tr>\n    <td width=\"50\"><img src=\"{{ICON1_URL}}\" width=\"50\" height=\"50\"/></td>\n    <td style=\"font-size: 18px; font-family: Arial, Helvetica, sans-serif; color: #45494E; padding-left: 16px\">\n      [Texto del punto]\n    </td>\n  </tr>\n</table>\n\n5. FOOTER CREDICORP:\n<tr>\n  <td><img src=\"{{CREDICORP_URL}}\" width=\"600\" height=\"71\" alt=\"\"/></td>\n</tr>\n<tr>\n  <td style=\"font-size: 11px; color: #45494E; padding: 5px 50px\">\n    PRIMA AFP S.A. RUC 20510398158<br/><br/><br/><br/>\n  </td>\n</tr>\n<hr size=\"1\" width=\"500\" color=\"#8a6a3e\">\n\n6. FOOTER REDES SOCIALES:\n<table width=\"600\">\n  <tr>\n    <td width=\"50\">&nbsp;</td>\n    <td width=\"350\">\n      <a href=\"http://www.prima.com.pe\" style=\"color:#FF4F00; text-decoration:none\">\n        <strong>prima.com.pe</strong>\n      </a>\n    </td>\n    <td width=\"160\">\n      <table>\n        <tr>\n          <td width=\"35\"><img src=\"{{FACEBOOK_URL}}\" width=\"35\" height=\"36\"/></td>\n          <td width=\"35\"><img src=\"{{INSTAGRAM_URL}}\" width=\"35\" height=\"36\"/></td>\n          <td width=\"35\"><img src=\"{{LINKEDIN_URL}}\" width=\"35\" height=\"36\"/></td>\n          <td width=\"35\"><img src=\"{{YOUTUBE_URL}}\" width=\"35\" height=\"36\"/></td>\n        </tr>\n      </table>\n    </td>\n    <td width=\"43\"><img src=\"{{CUADRO_URL}}\" width=\"43\" height=\"67\"/></td>\n  </tr>\n</table>\n\nPLACEHOLDERS OBLIGATORIOS (usar exactamente estos):\n{{CABECERA_URL}}, {{BANNER_URL}}, {{ICON1_URL}}, {{ICON2_URL}}, {{ICON3_URL}},\n{{CREDICORP_URL}}, {{FACEBOOK_URL}}, {{INSTAGRAM_URL}}, {{LINKEDIN_URL}}, {{YOUTUBE_URL}}, {{CUADRO_URL}}\n\nREGLAS CRÍTICAS:\n1. TODO con tablas anidadas (NO divs, NO CSS moderno)\n2. Ancho fijo 600px SIEMPRE\n3. Estilos SOLO inline\n4. Compatible con Outlook 2010+\n5. Generar HTML completo y válido\n\nAnaliza la imagen y genera el HTML completo.\nIMPORTANTE: Responde ÚNICAMENTE con el código HTML completo. NO incluyas explicaciones, comentarios o texto antes o después del código. Comienza directamente con <!DOCTYPE y termina con </html>.`;\n\n// MANTENER EL RETURN COMO ESTÁ\nreturn {\n  json: {\n    project_id: projectData.project_id,\n    project_name: projectData.project_name,\n    claude_prompt: claudePrompt, // Usará el nuevo prompt\n    elementos_disponibles: elementosData,\n    tiene_imagen: true\n  },\n  binary: {\n    image: infografiaBinary // MANTENER - ES CRÍTICO\n  }\n};"
+      },
+      "id": "dee5d8cd-68ee-4d86-8e29-b7f43a00fc43",
+      "name": "Preparar Prompt Claude1",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        224,
+        1984
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $('Preparar Estructura Carpetas1').first().json.SITE_ID || $('Obtener Info Site1').first().json.id }}/drive/root:/Documentos compartidos/HTML_Mailings/{{ $('Procesar FormData1').first().json.project_id }}/{{ $('Procesar FormData1').first().json.project_name }}_email_{{ Date.now() }}.html:/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autenticar SharePoint1').first().json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/html; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "html",
+        "body": "={{ $('URLs sharepoint').first().json.generated_html }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "4b5608e2-28d8-44be-8071-db4390657915",
+      "name": "Subir HTML1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        896,
+        2192
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "project-name",
+              "name": "projectName",
+              "type": "string",
+              "value": "={{ $('Procesar FormData1').first().json.project_name }}"
+            },
+            {
+              "id": "project-id",
+              "name": "projectId",
+              "type": "string",
+              "value": "={{ $('Procesar FormData1').first().json.project_id }}"
+            },
+            {
+              "id": "html-file",
+              "name": "htmlFile",
+              "type": "object",
+              "value": "={{ { \"name\": $json.name, \"path\": $json.webUrl, \"size\": $json.size } }}"
+            },
+            {
+              "id": "infografia",
+              "name": "infografia",
+              "type": "object",
+              "value": "={{ $('Subir Infografía').first().json || {} }}"
+            },
+            {
+              "id": "elementos",
+              "name": "elementos",
+              "type": "array",
+              "value": "={{ $('Subir Elemento').all().map(item => item.json) || [] }}"
+            },
+            {
+              "id": "summary",
+              "name": "summary",
+              "type": "object",
+              "value": "={{ { \"timestamp\": new Date().toISOString(), \"success\": true } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "74a59c1f-0121-4fca-aa36-9701fa3bd6f9",
+      "name": "Respuesta Final1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1040,
+        2192
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-opus-4-1-20250805",
+          "mode": "list",
+          "cachedResultName": "claude-opus-4-1-20250805"
+        },
+        "text": "={{ $json.claude_prompt }}",
+        "inputType": "binary",
+        "binaryPropertyName": "image",
+        "options": {
+          "maxTokens": 5000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        368,
+        2048
+      ],
+      "id": "07ada7d4-7bba-4a4a-80ea-127c8af8355c",
+      "name": "Analyze image1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "995512bb-9091-49df-9e0b-ea661c6d18b2",
+      "name": "Crear Carpetas1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        -624,
+        2224
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "content": "4.1:  SUBIR IMAGEN INFOGRAFIA A SHAREPOINT",
+        "height": 80,
+        "width": 224,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -288,
+        1936
+      ],
+      "typeVersion": 1,
+      "id": "60e5e237-9364-46f1-ac3b-9cdb7aefba3f",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Preparar Infografía": {
+      "main": [
+        [
+          {
+            "node": "Subir Infografía",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir Infografía": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Elemento": {
+      "main": [
+        [
+          {
+            "node": "Subir Elemento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir Elemento": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Preparar Prompt Claude1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Preparar Infografía",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preparar Elemento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URLs sharepoint": {
+      "main": [
+        [
+          {
+            "node": "Subir HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar HTML con placeholder": {
+      "main": [
+        [
+          {
+            "node": "URLs sharepoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook FormData1": {
+      "main": [
+        [
+          {
+            "node": "Procesar FormData1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar FormData1": {
+      "main": [
+        [
+          {
+            "node": "Configurar Credenciales1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar Credenciales1": {
+      "main": [
+        [
+          {
+            "node": "Autenticar SharePoint1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticar SharePoint1": {
+      "main": [
+        [
+          {
+            "node": "Obtener Info Site1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Info Site1": {
+      "main": [
+        [
+          {
+            "node": "Preparar Estructura Carpetas1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Estructura Carpetas1": {
+      "main": [
+        [
+          {
+            "node": "Crear Carpetas1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Prompt Claude1": {
+      "main": [
+        [
+          {
+            "node": "Analyze image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir HTML1": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Final1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image1": {
+      "main": [
+        [
+          {
+            "node": "Procesar HTML con placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Carpetas1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cc70b11d-1114-4789-b020-1ad079cb6361",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7a105ab4eef73d951c4688239c7acb9dfa0273966e6c4b37017b06ed2385ce8a"
+  },
+  "id": "OkEsVBB6wuFGSpGD",
+  "tags": []
+}
