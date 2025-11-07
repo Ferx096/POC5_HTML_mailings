@@ -1,0 +1,321 @@
+{
+  "name": "RAG_v2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -832,
+        1104
+      ],
+      "id": "eaf7d178-aed2-4c51-9a4b-6635947d0550",
+      "name": "When"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener example_id\nconst example_id = $('estructurar_datos_iniciales').first().json.example_id\n\n// Obtener html_utl\nconst html_url = $('estructurar_datos_iniciales').first().json.html_url;\n\n// Obtener html_utl\nconst image_url = \n$('estructurar_datos_iniciales').first().json.url_imagen\n\n// Obtener la descripción del análisis de OpenAI Vision\nconst visionResponse = $input.first().json.choices[0].message.content;\n\nreturn {\n  json: {\n    example_id: example_id,\n    html_url: html_url,\n    image_url: image_url,\n    content: {\n      description: visionResponse,\n      html_url: html_url\n    }\n  }\n};"
+      },
+      "name": "Estructurar_datos_finales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        1104
+      ],
+      "id": "59493c04-1b9d-4886-a404-5ea8a1fd8c46"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n\"model\": \"gpt-4o\",\n\"messages\": [\n{\n\"role\": \"user\",\n\"content\": [\n{\n\"type\": \"text\",\n\"text\": $json.prompt_inicial\n},\n{\n\"type\": \"image_url\",\n\"image_url\": {\n\"url\": $json.url_imagen\n}\n}\n]\n}\n],\n\"max_tokens\": 1024,\n\"temperature\": 0.3\n}\n}}",
+        "options": {}
+      },
+      "name": "Analizar Imagen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        1104
+      ],
+      "id": "bc694245-ed2f-4fae-962a-69dfeaf8900e",
+      "credentials": {
+        "openAiApi": {
+          "id": "ONaqRGabi2gN9UBD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lista de ejemplos con URLs de Supabase\nconst ejemplos = [\n  {\n    \"example_id\": \"ejemplo_01\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_01/Email_1.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_01/index_1.html\",\n    \"tipo_email\": \"rentabilidad_positiva\"\n  },\n  {\n    \"example_id\": \"ejemplo_02\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_02/Email_2.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_02/index_2.html\",\n    \"tipo_email\": \"economia_local\"\n  },\n  {\n    \"example_id\": \"ejemplo_03\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_03/Email_3.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_03/index_3.html\",\n    \"tipo_email\": \"asesora_exclusiva\"\n  },\n  {\n    \"example_id\": \"ejemplo_04\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_04/Email_4.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_04/index_4.html\",\n    \"tipo_email\": \"beneficio_repsol\"\n  },\n  {\n    \"example_id\": \"ejemplo_05\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_05/Email_5.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_05/index_5.html\",\n    \"tipo_email\": \"lunes_prima_promocion\"\n  },\n  {\n    \"example_id\": \"ejemplo_06\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_06/Email_6.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_06/index_6.html\",\n    \"tipo_email\": \"beneficios_exclusive\"\n  },\n  {\n    \"example_id\": \"ejemplo_07\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_07/Email_7.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_07/index_7.html\",\n    \"tipo_email\": \"aportes_voluntarios\"\n  },\n  {\n    \"example_id\": \"ejemplo_08\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_08/Email_8.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_08/index_8.html\",\n    \"tipo_email\": \"uso_fondo_inmueble\"\n  },\n  {\n    \"example_id\": \"ejemplo_09\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_09/Email_9.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_09/index_9.html\",\n    \"tipo_email\": \"descuentos_beneficios_hoy\"\n  },\n  {\n    \"example_id\": \"ejemplo_10\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_10/Email_10.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_10/index_10.html\",\n    \"tipo_email\": \"estado_cuenta_junio\"\n  }\n];\n\nreturn ejemplos.map(item => ({ json: item }));"
+      },
+      "name": "Preparar_Datos_url",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        1104
+      ],
+      "id": "778d6173-b001-41d0-9866-2ef3bb680ce4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prompt_inicial = `\nGenera una descripción semántica única de este email marketing HTML enfocándote en\n\n1) Es muy importante empezar con una descripcion breve de la estructura html observada. Este punto es muy importante\n\n**IDENTIDAD ÚNICA:**\n2) Mensaje principal y propuesta de valor específica (ej: \"crecimiento de fondo\", \"beneficio Repsol\", \"promociones gastronómicas\")\n3) Segmento objetivo implícito (inversores, clientes exclusive, nuevos usuarios)\n4) Narrativa y storytelling del email (celebración, información, urgencia, educación)\n\n**ELEMENTOS DISTINTIVOS:**\n5) Componentes visuales únicos presentes (gráficos de barras, porcentajes, fotografías de personas, íconos específicos, vouchers, mapas)\n6) Datos concretos mencionados (montos, descuentos, fechas, nombres de establecimientos)\n7) Calls-to-action específicos y su contexto (\"Revísalo aquí\", \"Ingresa aquí\", \"Hazlo aquí\", etc.)\n\n**ESTRUCTURA ESPECÍFICA:**\n8) Pattern de diseño dominante (hero + beneficios, lista de descuentos, invitación personal, infografía educativa)\n9) Elementos de personalización visibles ([Nombre del cliente], asesora exclusiva con nombre, etc.)\n10) Tipo de contenido predominante (informativo financiero, promocional, relacional, transaccional)\n\n**CONTEXTO DIFERENCIADOR:**\n11) Partnerships o marcas mencionadas (Repsol, Panchita, LaHuaca, Bembos, etc.)\n12) Temática temporal o estacional si existe\n13) Tono emocional dominante (optimista/crecimiento, exclusivo/VIP, urgente/limitado, educativo/informativo)\n`;\n\nconst url_imagen = $input.first().json.screenshot_url;\nconst example_id = $input.first().json.example_id\nconst html_url = $input.first().json.html_url\n\nreturn [\n  { \n    json: { \n      prompt_inicial: prompt_inicial,\n      url_imagen: url_imagen,\n      example_id: example_id,\n      html_url : html_url\n    },       \n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        1104
+      ],
+      "id": "04a22710-d01d-4bb8-98d8-63661a71b66b",
+      "name": "estructurar_datos_iniciales"
+    },
+    {
+      "parameters": {
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "html_url",
+                "value": "={{ $json.html_url }}"
+              },
+              {
+                "name": "example_id",
+                "value": "={{ $json.example_id }}"
+              },
+              {
+                "name": "html_image",
+                "value": "={{ $json.image_url }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        304,
+        1248
+      ],
+      "id": "ef503969-ade7-4975-9892-3c31b34e3e08",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-large",
+        "options": {
+          "dimensions": 1536
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        176,
+        1296
+      ],
+      "id": "231a2bbe-d9f6-4894-a29d-44d6e60c120d",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "ONaqRGabi2gN9UBD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "embeddingBatchSize": 1536,
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        1104
+      ],
+      "id": "21faa15e-8768-43a2-8dc7-dc438e743649",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "c1SBLWLwzDXzzOlo",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "                       VARIABLES\n\n\n\n\n\n\n\n\n\n\n\n   \n\n\n\n- Se pone las url de las imagenes y codig html subidas en supabase\n- Se determina variables que se va usar: prompt, url html, utrl imagen",
+        "height": 368,
+        "width": 528
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -864,
+        992
+      ],
+      "typeVersion": 1,
+      "id": "7028cfdc-b08c-4a90-a3fb-edf79f91a2f8",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "     GENERADOR DE DESCRICION DE IMAGEN\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n- Se genera descripcion del url de la iagen alamcenada en supabase",
+        "height": 368,
+        "width": 432
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -336,
+        992
+      ],
+      "typeVersion": 1,
+      "id": "015d2a70-e574-419f-98d8-0a3a8c78b98f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "              EMBEDDING - VS\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n- Se realiza el proceso de embedding y se sube al almacen de vectores de supabase\n- Se establece detalles de metada para una mejor trazabilidad escalabilidad y recuperacion de informacion",
+        "height": 640,
+        "width": 400,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        96,
+        992
+      ],
+      "typeVersion": 1,
+      "id": "ffde600f-83ed-4179-bff1-b1c3baf13392",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "# RAG",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -192,
+        848
+      ],
+      "typeVersion": 1,
+      "id": "4c0d6069-6c1b-44f2-98b3-7a0598b45fbe",
+      "name": "Sticky Note3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When": {
+      "main": [
+        [
+          {
+            "node": "Preparar_Datos_url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar Imagen": {
+      "main": [
+        [
+          {
+            "node": "Estructurar_datos_finales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar_Datos_url": {
+      "main": [
+        [
+          {
+            "node": "estructurar_datos_iniciales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "estructurar_datos_iniciales": {
+      "main": [
+        [
+          {
+            "node": "Analizar Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estructurar_datos_finales": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2ac7269e-4bbb-48fb-822d-bd94d6fd6619",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ed1681de14f9a4936157143eee2d947490eaa6b0ab8e413e43d58af369056e16"
+  },
+  "id": "MDr6X1mWN4qhFz1G",
+  "tags": [
+    {
+      "updatedAt": "2025-11-03T01:14:42.977Z",
+      "createdAt": "2025-11-03T01:14:42.977Z",
+      "id": "whPYKz5SMDfFA4n0",
+      "name": "production"
+    }
+  ]
+}

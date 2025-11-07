@@ -1,0 +1,605 @@
+{
+  "name": "poc5_html_mailings_SC",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Validar y limpiar datos binarios\nconst binaryData = $input.first().binary.data;\nconst jsonData = $input.first().json;\n\n// Validación\nif (!binaryData || !binaryData.data) {\n  throw new Error('Datos binarios no encontrados o inválidos');\n}\n\n// Convertir a base64 limpio (sin prefijos)\nlet base64Data = binaryData.data;\n\n// Remover prefijos si existen (data:image/png;base64,)\nif (base64Data.includes(',')) {\n  base64Data = base64Data.split(',')[1];\n}\n\n// Remover espacios en blanco y saltos de línea\nbase64Data = base64Data.replace(/\\s/g, '');\n\nreturn {\n  json: {\n    body: {\n      data: base64Data,\n      mimeType: binaryData.mimeType || 'image/png'\n    },\n    originalData: jsonData\n  },\n  binary: {\n    data: {\n      data: base64Data,\n      mimeType: binaryData.mimeType || 'image/png',\n      fileExtension: (binaryData.mimeType || 'image/png').split('/')[1],\n      fileName: binaryData.fileName || `image_${Date.now()}.png`\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        480
+      ],
+      "id": "e4e947fb-1011-4c74-8574-7180ccc355f6",
+      "name": "procesar imagen"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "obtener_imagen",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1072,
+        480
+      ],
+      "id": "dd6b92ea-74ba-411a-8bbd-399c17ba70d0",
+      "name": "Webhook",
+      "webhookId": "ec74294d-5426-4f23-bfea-f83701f7d506"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        480
+      ],
+      "id": "941ab235-d939-43eb-8e0a-4d3177208479",
+      "name": "Respond"
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "prompt": "=Contiene toda la información necesaria de las descripciones necesarias para \nAnaliza cuidadosamente el siguiente texto generado por el modelo: \"{{ $json.choices[0].message.content }}\".y responder solo contenido similar con el mas alto score , ranking o puntuacion",
+        "topK": 2,
+        "useReranker": true,
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -512,
+        480
+      ],
+      "id": "9eed6221-2547-4e94-b50b-2e133ec6a989",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "c1SBLWLwzDXzzOlo",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-large",
+        "options": {
+          "dimensions": 1536
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -512,
+        656
+      ],
+      "id": "9d2a1e0b-7de5-4929-8511-5dcbec64064f",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "ONaqRGabi2gN9UBD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topN": 2
+      },
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        656
+      ],
+      "id": "29a018b3-5c04-4040-8431-5ad07fdac533",
+      "name": "Reranker Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "bSYiGIch7qJI3QLM",
+          "name": "CohereApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const url_html = $input.first().json.data\nconst url_image = $('Supabase Vector Store').first().json.document.metadata.html_image\n\nconst prompt_filtro = `# GENERADOR DE HTML EMAILS PRIMA AFP\n\n## CONTEXTO\nEres un experto desarrollador de emails HTML con 10 años de experiencia especializado en Prima AFP. Recibirás una imagen de diseño y deberás crear el código HTML correspondiente siguiendo EXACTAMENTE las especificaciones técnicas definidas.\n\n---\n\n## DETALLES TÉCNICOS OBLIGATORIOS\n\n### TIPOGRAFÍA\n- **Tamaños permitidos:** Solo 24pt y 18pt (Legales: 11pt)\n- **Familia:** Arial, Helvetica, sans-serif exclusivamente\n- **Peso:** Regular y Bold según énfasis visual\n\n### COLORES PERMITIDOS\n\\`\\`\\`\n#ff4f00  (Naranja Prima - principal)\n#45494e  (Gris oscuro - texto general)\n#1c1c1c  (Negro - texto alternativo)\n#816900  (Dorado oscuro)\n#886a44  (Marrón - legales/enlaces)\n#008485  (Verde azulado)\n#ddddd4  (Gris claro)\n#ffede6  (Rosa pastel)\n#8ac193  (Verde pastel)\n#e6fafa  (Azul pastel)\n#fffae6  (Amarillo pastel)\n#8a6a3e  (Marrón separadores <hr>)\n\\`\\`\\`\n\n### MEDIDAS ESTRUCTURALES\n- **Ancho principal:** 600px\n- **Contenido centrado:** 500px (con márgenes de 50px)\n- **Padding estándar:** 50px laterales\n- **Espaciado entre secciones:** 23px vertical\n\n### FRAMEWORK DE ESPACIADO\n- Item spacing: 32px entre elementos\n- Padding estándar: 50px laterales\n- Line-height: 24px (texto de 18px)\n- Espaciadores: \\`<td width=\"23px\">&nbsp;</td>\\` o \\`<td width=\"10px\">&nbsp;</td>\\`\n\n---\n\n## ESTRUCTURA HTML ESTÁNDAR\n\n### DOCUMENTO BASE\n\\`\\`\\`html\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>AFP Prima</title>\n</head>\n<body>\n<table width=\"600\" border=\"0\" bgcolor=\"#FFF\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" style=\"box-sizing:border-box;background-color:rgb(255,255,255)\">\n<!-- CONTENIDO AQUÍ -->\n</table>\n</body>\n</html>\n\\`\\`\\`\n\n### 1. HEADER (Imagen superior)\n- Ancho: 600px completo\n- Alto: Generalmente 400px\n- Siempre con enlace \\`<a href=\"\">\\`\n- Placeholder: \\`{{CABECERA_URL}}\\`\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td><a href=\"[URL_DESTINO]\"><img src=\"{{CABECERA_URL}}\" width=\"600\" height=\"400\" alt=\"\"/></a></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n### 2. SALUDO INICIAL\n- **Variaciones de color:** \\`#FF4F00\\` (común) o \\`#1c1c1c\\` (alternativo)\n- Tamaño: 24px\n- Formato: \\`<strong>Hola, [Nombre del Cliente]:</strong>\\`\n- Padding top: 30-40px\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td style=\"text-align: left; font-size: 24px; font-family: Arial, Helvetica, sans-serif; color: #FF4F00; vertical-align: top; padding-top: 30px; padding-left: 50px; padding-right: 50px\"><strong>Hola, [Nombre del Cliente]:</strong></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n### 3. TEXTO PRINCIPAL\n- Tamaño: 18px\n- **Colores variables:** \\`#45494E\\` o \\`#1c1c1c\\`\n- Line-height: 24px (cuando hay párrafos largos)\n- Negritas con \\`<strong>\\` para énfasis\n- Palabras clave en naranja: \\`<font color=\"FF4F00\">texto</font>\\`\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td style=\"text-align: left; font-size: 18px; font-family: Arial, Helvetica, sans-serif; color: #45494E; vertical-align: top; padding-top: 20px; padding-left: 50px; padding-right: 50px\">[CONTENIDO EXTRAÍDO DE LA IMAGEN]</td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n### 4. ESPACIADOR VERTICAL\n\\`\\`\\`html\n<td width=\"23px\">&nbsp;</td>\n\\`\\`\\`\n\n### 5. IMÁGENES CENTRALES (Banners/Cards)\n- Ancho: 500px (centrado) o 600px (completo)\n- Pueden o no llevar enlace\n- Placeholders: \\`{{BANNER_URL}}\\`, \\`{{CARD_URL}}\\`, etc.\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"center\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"500\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td><a href=\"[URL_DESTINO]\"><img src=\"{{BANNER_URL}}\" width=\"500\" height=\"180\" alt=\"\"/></a></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n### 6. LISTAS CON ICONOS\n- Tabla de 500px centrada\n- **Columnas variables:**\n  - Icono: 50-91px\n  - Texto: 374-445px\n- Padding entre icono y texto: 8-16px\n- Separadores \\`<hr>\\` opcionales\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"500\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"50\" align=\"left\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td><img src=\"{{ICON1_URL}}\" width=\"50\" height=\"50\" alt=\"\"/></td>\n</tr>\n</table>\n</td>\n<td>\n<table width=\"433\" align=\"left\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td style=\"text-align: left; font-size: 18px; font-family: Arial, Helvetica, sans-serif; color: #45494E; vertical-align: top; padding-top: 0px; padding-left: 16px; padding-right: 0px\">[TEXTO DEL PUNTO]</td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\n<!-- Separador opcional -->\n<tr>\n<td width=\"600\" colspan=\"2\">\n<hr size=\"1\" width=\"500\" color=\"#8a6a3e\">\n</td>\n</tr>\n\\`\\`\\`\n\n### 7. FRASES DESTACADAS (Claims)\n- Centradas\n- Tamaño: 24px\n- **Color base variable:** \\`#45494E\\` o \\`#1c1c1c\\`\n- Palabras clave en \\`#FF4F00\\`\n- Saltos de línea con \\`<br/>\\`\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td style=\"text-align: center; font-size: 24px; font-family: Arial, Helvetica, sans-serif; color: #45494E; vertical-align: top; padding-top: 15px; padding-left: 50px; padding-right: 50px\"><strong>[FRASE DESTACADA CON <font color=\"FF4F00\">PALABRAS CLAVE</font>]</strong></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n### 8. BOTONES CTA\n- Típicamente 200x50px\n- Siempre con enlace\n- Placeholder: \\`{{CTA_URL}}\\`\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"200\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td><a href=\"[URL_DESTINO]\"><img src=\"{{CTA_URL}}\" width=\"200\" height=\"50\" alt=\"\"/></a></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n### 9. SECCIÓN CREDICORP\n- Logo: 600x71px\n- Incluye RUC obligatorio\n- Separador \\`<hr>\\`\n- Placeholder: \\`{{CREDICORP_URL}}\\`\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" bgcolor=\"#FFFFFF\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border-bottom=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td><img src=\"{{CREDICORP_URL}}\" width=\"600\" height=\"71\" alt=\"\"/></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td style=\"text-align: left; font-size: 11px; font-family: Arial, Helvetica, sans-serif; color: #45494E; vertical-align: top; padding-top: 5px; padding-left: 50px; padding-right: 50px\">PRIMA AFP S.A. RUC 20510398158<br/><br/><br/><br/></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n<hr size=\"1\" width=\"500\" color=\"#8a6a3e\">\n</td>\n</tr>\n\\`\\`\\`\n\n### 10. FOOTER (Redes Sociales)\n- Tabla de 600px\n- Height: 40-80px (según diseño)\n- **Color del link web variable:** \\`#FF4F00\\` o \\`#886a44\\`\n- Iconos: 32x32px o 35x36px\n- Placeholders: \\`{{FACEBOOK_URL}}\\`, \\`{{INSTAGRAM_URL}}\\`, \\`{{LINKEDIN_URL}}\\`, \\`{{YOUTUBE_URL}}\\`, \\`{{CUADRO_URL}}\\`\n\n\\`\\`\\`html\n<!--[ABRE PIE]-->\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\" style=\"border-top:0px solid #CCC; background:#fff;\">\n<table width=\"600\" height=\"40px\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td width=\"50px\">&nbsp;</td>\n<td width=\"350px\">\n<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td align=\"left\"><a href=\"http://www.prima.com.pe\" target=\"_blank\" style=\"text-decoration:none;\"><span style=\"font-family:sans-serif; margin:0px; padding:0px; color:#FF4F00; font-size:16px;\"><strong>prima.com.pe</strong></span></a></td>\n</tr>\n</table>\n</td>\n<td width=\"160px\">\n<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td width=\"160\">\n<table width=\"150\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td width=\"35px\"><a href=\"https://www.facebook.com/PrimaAFP\" target=\"_blank\" style=\"text-decoration:none;\"><img src=\"{{FACEBOOK_URL}}\" width=\"35\" height=\"36\" style=\"border:none;\" /></a></td>\n<td width=\"35px\"><a href=\"https://www.instagram.com/primaafp/\" target=\"_blank\" style=\"text-decoration:none;\"><img src=\"{{INSTAGRAM_URL}}\" width=\"35\" height=\"36\" style=\"border:none;\" /></a></td>\n<td width=\"35px\"><a href=\"https://pe.linkedin.com/company/prima-afp\" target=\"_blank\"><img src=\"{{LINKEDIN_URL}}\" width=\"35\" height=\"36\" style=\"border:none;\" /></a></td>\n<td width=\"35px\"><a href=\"https://www.youtube.com/user/AFPPrima\" target=\"_blank\" style=\"text-decoration:none;\"><img src=\"{{YOUTUBE_URL}}\" width=\"35\" height=\"36\" style=\"border:none;\" /></a></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n<td width=\"43px\" align=\"center\" style=\"background-color: #FFFFFF;\">\n<table width=\"43\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td align=\"center\"><img src=\"{{CUADRO_URL}}\" width=\"43\" height=\"67\"></td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n<!--[CIERRA PIE]-->\n\\`\\`\\`\n\n### 11. LEGALES (Opcional)\n- Solo si aparecen en la imagen\n- Tamaño: 11pt o 14pt\n- **Color variable:** \\`#45494E\\` o \\`#886a44\\`\n- Puede incluir enlaces\n\n\\`\\`\\`html\n<tr>\n<td width=\"600\" colspan=\"2\" valign=\"top\">\n<table width=\"600\" border=\"0\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\">\n<tr>\n<td>\n<table width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n<tr>\n<td style=\"text-align: left; font-size: 11px; font-family: Arial, Helvetica, sans-serif; color: #45494E; vertical-align: top; padding-top: 0px; padding-left: 50px; padding-right: 50px\">[TEXTO LEGAL DE LA IMAGEN]</td>\n</tr>\n</table>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n\\`\\`\\`\n\n---\n\n## PLACEHOLDERS OBLIGATORIOS\n\nUsar EXACTAMENTE estos nombres:\n- \\`{{CABECERA_URL}}\\` - Imagen header\n- \\`{{BANNER_URL}}\\` - Banner principal\n- \\`{{CARD_URL}}\\` - Cards promocionales\n- \\`{{ICON1_URL}}\\`, \\`{{ICON2_URL}}\\`, \\`{{ICON3_URL}}\\`, \\`{{ICON4_URL}}\\` - Iconos de lista\n- \\`{{CTA_URL}}\\` - Botón de acción\n- \\`{{CREDICORP_URL}}\\` - Logo Credicorp\n- \\`{{FACEBOOK_URL}}\\`, \\`{{INSTAGRAM_URL}}\\`, \\`{{LINKEDIN_URL}}\\`, \\`{{YOUTUBE_URL}}\\` - Iconos redes sociales\n- \\`{{CUADRO_URL}}\\` - Logo cuadrado footer\n- \\`{{GIF_URL}}\\` - GIFs animados (si aplica)\n\n---\n\n## REGLAS DE INTERPRETACIÓN\n\n### ✅ DEBES HACER:\n1. **Analizar la imagen completamente** e identificar: header, saludo, texto principal, imágenes, listas, claims, footer\n2. **Extraer el texto EXACTO** que aparece en la imagen\n3. **Detectar colores dominantes** y usar los correspondientes de la paleta\n4. **Respetar jerarquía visual:** títulos grandes (24px), texto normal (18px)\n5. **Identificar elementos como imágenes completas:** banners, cards, ilustraciones → usar \\`<img>\\` con placeholder\n6. **Detectar patrones de lista:** iconos + texto → usar tabla de 2 columnas\n7. **Mantener proporciones y espaciados** según lo visual\n8. **Usar negritas estratégicamente:** solo en palabras clave, no todo el texto\n\n### ❌ NO DEBES HACER:\n1. **NO transcribir texto de imágenes decorativas** (banners gráficos, ilustraciones)\n2. **NO inventar colores** fuera de la paleta permitida\n3. **NO usar tamaños de texto** distintos a 24px, 18px (11px solo legales)\n4. **NO omitir** \\`width\\` y \\`height\\` en imágenes\n5. **NO usar divs, flexbox o CSS moderno** (solo tablas + inline styles)\n6. **NO agregar texto que no esté en la imagen**\n7. **NO cambiar el orden de las secciones** respecto a la imagen\n\n---\n\n## CHECKLIST DE VALIDACIÓN\n\nAntes de entregar, verificar:\n- [ ] DOCTYPE y estructura XHTML completa\n- [ ] Ancho principal: 600px\n- [ ] Solo colores de la paleta permitida\n- [ ] Solo tamaños 24px, 18px (11px legales)\n- [ ] Tipografía: Arial, Helvetica, sans-serif\n- [ ] Todas las imágenes con \\`width\\`, \\`height\\` y placeholder \\`{{...}}\\`\n- [ ] Estructura de tablas anidadas correcta\n- [ ] Padding lateral: 50px en secciones principales\n- [ ] Espaciadores verticales donde corresponde\n- [ ] Footer completo: Credicorp + RUC + redes sociales\n- [ ] Sin estilos CSS externos (todo inline)\n- [ ] Código limpio y bien indentado\n\n---\n\n## INSTRUCCIÓN FINAL\n\n**ANALIZA LA IMAGEN PROPORCIONADA y genera el código HTML completo siguiendo TODOS los patrones y reglas especificadas.**\n\n**Responde ÚNICAMENTE con el código HTML completo y funcional. NO incluyas explicaciones, comentarios adicionales o texto antes/después del código. Comienza directamente con \\`<!DOCTYPE\\` y termina con \\`</html>\\`.**`;\n\nconst finalPrompt = `${prompt_filtro}\n\n---\n\n## IMAGEN A PROCESAR:\n${url_image}\n\n## REFERENCIAS:\n- URL HTML similar: ${url_html}\n\nGenera ahora el código HTML completo basado en la imagen proporcionada.Responde ÚNICAMENTE con el código HTML completo y funcional. NO incluyas explicaciones, comentarios adicionales o texto antes/después del código. Comienza directamente con \\`<!DOCTYPE\\` y termina con \\`</html>\\``;\n\nreturn {\n  json: {\n    prompt_final: finalPrompt,\n    url_html: url_html,\n    url_image: url_image\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        480
+      ],
+      "id": "a93648ab-5661-4cb6-8bf9-dbb35757d0aa",
+      "name": "Preparar prompt final"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-opus-4-1-20250805",
+          "mode": "list",
+          "cachedResultName": "claude-opus-4-1-20250805"
+        },
+        "text": "={{ $json.prompt_final }}",
+        "imageUrls": "={{ $json.url_image }}",
+        "options": {
+          "maxTokens": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        128,
+        480
+      ],
+      "id": "4710eee4-8fb4-409e-92da-839876578d6a",
+      "name": "Analyze image",
+      "credentials": {
+        "anthropicApi": {
+          "id": "xNQHPjXDByfXo5OT",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.document.metadata.html_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        480
+      ],
+      "id": "48d5c419-8baf-450d-9c12-69296c73aa50",
+      "name": "Descargar_HTML",
+      "credentials": {
+        "supabaseApi": {
+          "id": "c1SBLWLwzDXzzOlo",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant-id",
+              "name": "TENANT_ID",
+              "type": "string",
+              "value": "API_TENANT_ID"
+            },
+            {
+              "id": "client-id",
+              "name": "CLIENT_ID",
+              "type": "string",
+              "value": "API_CLIENT_ID"
+            },
+            {
+              "id": "client-secret",
+              "name": "CLIENT_SECRET",
+              "type": "string",
+              "value": "API_CLIENT_SECRET"
+            },
+            {
+              "id": "sharepoint-host",
+              "name": "SHAREPOINT_HOSTNAME",
+              "type": "string",
+              "value": "netorgft4158062.sharepoint.com"
+            },
+            {
+              "id": "sharepoint-site",
+              "name": "SHAREPOINT_SITE",
+              "type": "string",
+              "value": "RespuestasdeFormulariodetraspasos"
+            },
+            {
+              "id": "f6f79d94-f54b-49c0-bf2f-103f348b6a56",
+              "name": "=code_html",
+              "value": "={{ $json.content[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "53c53aa7-e2b4-4003-8051-82fcb8832168",
+      "name": "Configurar Credenciales",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        304,
+        480
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://login.microsoftonline.com/{{ $json.TENANT_ID }}/oauth2/v2.0/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $json.CLIENT_ID }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $json.CLIENT_SECRET }}"
+            },
+            {
+              "name": "scope",
+              "value": "https://graph.microsoft.com/.default"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5c4a60dc-7f89-45f2-a386-15bf48d22f98",
+      "name": "Autenticar SharePoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        304,
+        640
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $('Configurar Credenciales').item.json.SHAREPOINT_HOSTNAME }}:/sites/{{ $('Configurar Credenciales').item.json.SHAREPOINT_SITE }}:",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "836ab7b2-d4c6-4894-8ba1-f318f6cc1431",
+      "name": "Obtener Info Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        464,
+        640
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://graph.microsoft.com/v1.0/sites/{{ $json.id }}/drive/root:/Documentos compartidos/{{ Date.now() }}.html:/content\n\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autenticar SharePoint').item.json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/html; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "html",
+        "body": "={{ $('Configurar Credenciales').item.json.code_html }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "2dda09ec-6d32-4b64-bb94-18903d94af69",
+      "name": "Subir HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        608,
+        640
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Genera una descripción semántica única de este email marketing HTML enfocándote en:\\n\\n1) Es muy importante empezar con una descripción breve de la estructura html observada. Este punto es muy importante\\n\\n**IDENTIDAD ÚNICA:**\\n\\n2) Mensaje principal y propuesta de valor específica (ej: \\\"crecimiento de fondo\\\", \\\"beneficio Repsol\\\", \\\"promociones gastronómicas\\\")\\n\\n3) Segmento objetivo implícito (inversores, clientes exclusive, nuevos usuarios)\\n\\n4) Narrativa y storytelling del email (celebración, información, urgencia, educación)\\n\\n**ELEMENTOS DISTINTIVOS:**\\n\\n5) Componentes visuales únicos presentes (gráficos de barras, porcentajes, fotografías de personas, íconos específicos, vouchers, mapas)\\n\\n6) Datos concretos mencionados (montos, descuentos, fechas, nombres de establecimientos)\\n\\n7) Calls-to-action específicos y su contexto (\\\"Revísalo aquí\\\", \\\"Ingresa aquí\\\", \\\"Hazlo aquí\\\", etc.)\\n\\n**ESTRUCTURA ESPECÍFICA:**\\n\\n8) Pattern de diseño dominante (hero + beneficios, lista de descuentos, invitación personal, infografía educativa)\\n\\n9) Elementos de personalización visibles ([Nombre del cliente], asesora exclusiva con nombre, etc.)\\n\\n10) Tipo de contenido predominante (informativo financiero, promocional, relacional, transaccional)\\n\\n**CONTEXTO DIFERENCIADOR:**\\n\\n11) Partnerships o marcas mencionadas (Repsol, Panchita, LaHuaca, Bembos, etc.)\\n\\n12) Temática temporal o estacional si existe\\n\\n13) Tono emocional dominante (optimista/crecimiento, exclusivo/VIP, urgente/limitado, educativo/informativo)\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:{{ $('Webhook').item.json.body.mimeType }};base64,{{ $('Webhook').item.json.body.data }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"max_tokens\": 1024,\n  \"temperature\": 0.3\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -752,
+        480
+      ],
+      "id": "682f7d6c-4ce8-47e6-9e9e-9ad1d2122001",
+      "name": "generar_descripcion",
+      "credentials": {
+        "openAiApi": {
+          "id": "ONaqRGabi2gN9UBD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# GENERACION DE DESCRIPCION DE IMAGEN\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n- En esta seccion se obtiene una descipcion detallada de la imagen cargada",
+        "height": 480,
+        "width": 496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1088,
+        336
+      ],
+      "typeVersion": 1,
+      "id": "1472e863-c1de-47d2-a447-d7640c9f711a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# RECUPERACION DE INFORMACION - RAG\n- Busca en el vector storage de supabase vectores similares a la descripcion\n- Categoriza con reranker los valor de mayor porcentaje, extrayendo los 2 mas altos como maximo\n- Coge el del valor mas alto.\n- En base a ese valor mas alto extrae el url del codigo html de la metada incrustada.\n- Ese url pertence a supabase y se extrae el codigo html\nTiene un filtro para  verificar.\n\n**Importante**: En este nodo podemos filtrar el html que nos da para verificar si el html recuperado es el correcto. Por es emotivo en caso falles la descripcion, se peude volver ejecutar y verificar si el html cambio\n\n**Se recomienda observar subir mas informacion al rag de los html que fallen.**",
+        "height": 800,
+        "width": 496,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -592,
+        16
+      ],
+      "typeVersion": 1,
+      "id": "80684ed9-5c28-4f06-b7fd-b4e718fec0a9",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# SUBIR A SHAREPOINT",
+        "height": 480,
+        "width": 640,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        256,
+        336
+      ],
+      "typeVersion": 1,
+      "id": "8ea95289-7bc4-4a4a-a5e6-6bc0c7daa301",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# GENERACION DE CODIGO HTML\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n- Se toma la imagen adjunta como referencia\n- Se toma el codigo html descargado\n- Se realiza una peticion al llm para que coja los 2 valores y me genere un codigo html con el parecido de ambos.",
+        "height": 480,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -96,
+        336
+      ],
+      "typeVersion": 1,
+      "id": "55efa555-ff64-4553-870d-8ec4b86f29bb",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "procesar imagen": {
+      "main": [
+        [
+          {
+            "node": "generar_descripcion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "procesar imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond": {
+      "main": [
+        []
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Descargar_HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere": {
+      "ai_reranker": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar prompt final": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Configurar Credenciales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar_HTML": {
+      "main": [
+        [
+          {
+            "node": "Preparar prompt final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar Credenciales": {
+      "main": [
+        [
+          {
+            "node": "Autenticar SharePoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticar SharePoint": {
+      "main": [
+        [
+          {
+            "node": "Obtener Info Site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir HTML": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Info Site": {
+      "main": [
+        [
+          {
+            "node": "Subir HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generar_descripcion": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ccc139ba-ac3b-40c9-96d9-ab9c90713532",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ed1681de14f9a4936157143eee2d947490eaa6b0ab8e413e43d58af369056e16"
+  },
+  "id": "5JyKr8xi4C9bBQz4",
+  "tags": []
+}

@@ -1,0 +1,217 @@
+{
+  "name": "RAG_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO email_embeddings (example_id, screenshot_url, html_url, tipo_email, description, embedding)\nVALUES (\n  '{{ $json.example_id }}',\n  '{{ $json.screenshot_url }}',\n  '{{ $json.html_url }}',\n  '{{ $json.tipo_email }}',\n  '{{ $json.description }}',\n  '{{ $json.embedding }}'::vector\n)\nON CONFLICT (example_id) \nDO UPDATE SET \n  screenshot_url = EXCLUDED.screenshot_url,\n  html_url = EXCLUDED.html_url,\n  tipo_email = EXCLUDED.tipo_email,\n  description = EXCLUDED.description,\n  embedding = EXCLUDED.embedding,\n  created_at = NOW();",
+        "options": {}
+      },
+      "name": "Supabase - Insertar Vector",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        912,
+        320
+      ],
+      "id": "8b3adddd-5bc0-49ba-b685-3d65de6fb69d",
+      "credentials": {
+        "postgres": {
+          "id": "MbFDmWoq3fQpZLm0",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener datos del nodo anterior\nconst prevData = $('Code - Combinar Datos').item.json;\nconst embedding = $json.data[0].embedding;\n\n// Formatear el vector para PostgreSQL\nconst vectorString = '[' + embedding.join(',') + ']';\n\nreturn {\n  json: {\n    example_id: prevData.example_id,\n    screenshot_url: prevData.screenshot_url,\n    html_url: prevData.html_url,\n    tipo_email: prevData.tipo_email,\n    description: prevData.description,\n    embedding: vectorString\n  }\n};"
+      },
+      "name": "Code - Preparar para Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        320
+      ],
+      "id": "48a92259-adc9-4f7d-83e9-4c7d5ed05d02"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n\"model\": \"text-embedding-3-large\",\n\"input\":  $json.content,\n\"dimensions\": 1536\n}\n}}",
+        "options": {}
+      },
+      "name": "OpenAI - Generate Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        496,
+        320
+      ],
+      "id": "caf05f90-ffcc-44aa-b6bd-960c6183dfcd",
+      "credentials": {
+        "openAiApi": {
+          "id": "ONaqRGabi2gN9UBD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener datos originales del primer nodo\nconst inputData = $('Code - Preparar Datos').item.json;\n\n// Obtener la descripción del análisis de OpenAI Vision\nconst visionResponse = $json.choices[0].message.content;\n\nreturn {\n  json: {\n    example_id: inputData.example_id,\n    html_url: inputData.html_url,\n    content: visionResponse\n  }\n};"
+      },
+      "name": "Code - Combinar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        320
+      ],
+      "id": "356031ab-bdd9-4458-bdf3-ff6b864f8e5c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n\"model\": \"gpt-4o\",\n\"messages\": [\n{\n\"role\": \"user\",\n\"content\": [\n{\n\"type\": \"text\",\n\"text\": $json.prompt_inicial\n},\n{\n\"type\": \"image_url\",\n\"image_url\": {\n\"url\": $json.url_imagen\n}\n}\n]\n}\n],\n\"max_tokens\": 1024,\n\"temperature\": 0.3\n}\n}}",
+        "options": {}
+      },
+      "name": "OpenAI Vision - Analizar Imagen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        64,
+        400
+      ],
+      "id": "32cba292-09b6-4570-8b0c-a2d6372e5005",
+      "credentials": {
+        "openAiApi": {
+          "id": "ONaqRGabi2gN9UBD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lista de ejemplos con URLs de Supabase\nconst ejemplos = [\n  {\n    \"example_id\": \"ejemplo_01\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_01/Email_1.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_01/index_1.html\",\n    \"tipo_email\": \"rentabilidad_positiva\"\n  },\n  {\n    \"example_id\": \"ejemplo_02\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_02/Email_2.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_02/index_2.html\",\n    \"tipo_email\": \"economia_local\"\n  },\n  {\n    \"example_id\": \"ejemplo_03\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_03/Email_3.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_03/index_3.html\",\n    \"tipo_email\": \"asesora_exclusiva\"\n  },\n  {\n    \"example_id\": \"ejemplo_04\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_04/Email_4.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_04/index_4.html\",\n    \"tipo_email\": \"beneficio_repsol\"\n  },\n  {\n    \"example_id\": \"ejemplo_05\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_05/Email_5.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_05/index_5.html\",\n    \"tipo_email\": \"lunes_prima_promocion\"\n  },\n  {\n    \"example_id\": \"ejemplo_06\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_06/Email_6.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_06/index_6.html\",\n    \"tipo_email\": \"beneficios_exclusive\"\n  },\n  {\n    \"example_id\": \"ejemplo_07\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_07/Email_7.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_07/index_7.html\",\n    \"tipo_email\": \"aportes_voluntarios\"\n  },\n  {\n    \"example_id\": \"ejemplo_08\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_08/Email_8.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_08/index_8.html\",\n    \"tipo_email\": \"uso_fondo_inmueble\"\n  },\n  {\n    \"example_id\": \"ejemplo_09\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_09/Email_9.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_09/index_9.html\",\n    \"tipo_email\": \"descuentos_beneficios_hoy\"\n  },\n  {\n    \"example_id\": \"ejemplo_10\",\n    \"screenshot_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_10/Email_10.jpg\",\n    \"html_url\": \"https://vyvtthwymfvemrfsgchz.supabase.co/storage/v1/object/public/poc5-html/ejemplo_10/index_10.html\",\n    \"tipo_email\": \"estado_cuenta_junio\"\n  }\n];\n\nreturn ejemplos.map(item => ({ json: item }));"
+      },
+      "name": "Code - Preparar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        320
+      ],
+      "id": "57dd672b-7e40-492f-acb7-f466d406d5ee"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prompt_inicial = `\nGenera una descripción semántica única de este email marketing HTML enfocándote en:\n\n**IDENTIDAD ÚNICA:**\n1) Mensaje principal y propuesta de valor específica (ej: \"crecimiento de fondo\", \"beneficio Repsol\", \"promociones gastronómicas\")\n2) Segmento objetivo implícito (inversores, clientes exclusive, nuevos usuarios)\n3) Narrativa y storytelling del email (celebración, información, urgencia, educación)\n\n**ELEMENTOS DISTINTIVOS:**\n4) Componentes visuales únicos presentes (gráficos de barras, porcentajes, fotografías de personas, íconos específicos, vouchers, mapas)\n5) Datos concretos mencionados (montos, descuentos, fechas, nombres de establecimientos)\n6) Calls-to-action específicos y su contexto (\"Revísalo aquí\", \"Ingresa aquí\", \"Hazlo aquí\", etc.)\n\n**ESTRUCTURA ESPECÍFICA:**\n7) Pattern de diseño dominante (hero + beneficios, lista de descuentos, invitación personal, infografía educativa)\n8) Elementos de personalización visibles ([Nombre del cliente], asesora exclusiva con nombre, etc.)\n9) Tipo de contenido predominante (informativo financiero, promocional, relacional, transaccional)\n\n**CONTEXTO DIFERENCIADOR:**\n10) Partnerships o marcas mencionadas (Repsol, Panchita, LaHuaca, Bembos, etc.)\n11) Temática temporal o estacional si existe\n12) Tono emocional dominante (optimista/crecimiento, exclusivo/VIP, urgente/limitado, educativo/informativo)\n\nDescribe estos elementos de forma técnica y específica, incluyendo valores exactos, nombres propios y detalles únicos que permitan distinguir este email de otros similares en búsquedas semánticas.\n`;\n\nconst url_imagen = $input.first().json.screenshot_url;\n\nreturn [\n  { \n    json: { \n      prompt_inicial: prompt_inicial,\n      url_imagen: url_imagen\n    },       \n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        320
+      ],
+      "id": "76b87005-c981-4ce3-9182-4b8c1319dd98",
+      "name": "prompt inicial"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code - Preparar para Supabase": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Insertar Vector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Code - Preparar para Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Combinar Datos": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Vision - Analizar Imagen": {
+      "main": [
+        [
+          {
+            "node": "Code - Combinar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Preparar Datos": {
+      "main": [
+        [
+          {
+            "node": "prompt inicial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prompt inicial": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Vision - Analizar Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d29164dd-1151-4165-8e00-0c0639ac8153",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ed1681de14f9a4936157143eee2d947490eaa6b0ab8e413e43d58af369056e16"
+  },
+  "id": "MDr6X1mWN4qhFz1G",
+  "tags": [
+    {
+      "updatedAt": "2025-11-03T01:14:42.977Z",
+      "createdAt": "2025-11-03T01:14:42.977Z",
+      "id": "whPYKz5SMDfFA4n0",
+      "name": "production"
+    }
+  ]
+}
