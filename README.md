@@ -1,4 +1,4 @@
-# 🚀 RAG HTML GENERE MAILINGS - Sistema de Automatización con n8n y IA
+# 🚀 RAG HTML MAILINGS GENERE - Sistema de Automatización con n8n y IA
 
 ## 📋 **Descripción del Proyecto**
 
