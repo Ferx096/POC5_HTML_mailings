@@ -4,7 +4,7 @@
 
 Sistema de automatización inteligente que utiliza **Retrieval-Augmented Generation (RAG)** para generar código HTML profesional a partir de imágenes de email marketing. El proyecto combina el poder de **n8n**, **OpenAI Vision**, **Anthropic - Clude**, **Supabase Vector Store** y **embeddings semánticos** para crear un flujo de trabajo completamente automatizado que analiza, aprende y genera HTML basándose en patrones visuales similares.
 
-### 🎯 **Objetivo Principal**
+## 🎯 **Objetivo Principal**
 
 Automatizar la generación de código HTML para campañas de email marketing mediante:
 - Análisis visual inteligente de imágenes con OpenAI Vision API
@@ -28,7 +28,6 @@ graph TD
     H --> I[Subir a SharePoint]
     I --> J[Respuesta al Usuario]
 ```
-
 Flujo de trabajo aqui (...)
 
 ### Arquitectura del rag
@@ -42,7 +41,6 @@ graph TD
     E --> F[Metadata =  link html]
     E --> F[Vector Storage en Supabase]
 ```
-
 Flujo de trabajo aqui (...)
 
 
