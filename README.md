@@ -35,7 +35,7 @@ Flujo de trabajo aqui (...)
 
 ```mermaid
 graph TD
-    A[Usuario sube imagen] + [Usuario sube html]  --> B[Supabase]
+    A[Usuario sube imagen + Usuario sube html]  --> B[Supabase]
     B --> C[link c/u]
     C --> D[OpenAI API]
     D --> E[Descripción Semántica link img] 
