@@ -1,4 +1,4 @@
-# 🚀 RAG HTML GENRtE MAILINGS - Sistema de Automatización con n8n y IA
+# 🚀 RAG HTML GENERE MAILINGS - Sistema de Automatización con n8n y IA
 
 ## 📋 **Descripción del Proyecto**
 
@@ -54,7 +54,7 @@ Flujo de trabajo aqui (...)
 | BD Vectorial | Supabase PostgreSQL | pgvector |
 | Análisis de Imágenes | OpenAI Vision API | GPT-4o |
 | Embeddings | OpenAI | text-embedding-3-large |
-| Codigo HTML | Antrhopic | Claude Opues 4.1 |
+| Codigo HTML | Antrhopic | Claude Opus 4.1 |
 | Reranking | Cohere API | Latest |
 | Almacenamiento | SharePoint | Microsoft 365 |
 | Frontend | HTML5/CSS3/JavaScript | Vanilla |
