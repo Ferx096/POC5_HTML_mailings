@@ -1,192 +1,278 @@
-# 📧 Análisis Detallado del Flujo n8n - Sistema de Generación de Email HTML con Infografías
+# 🚀 RAG HTML GENRtE MAILINGS - Sistema de Automatización con n8n y IA
 
-> Sistema automatizado para la creación de emails HTML corporativos para Prima AFP, procesando imágenes y generando código HTML compatible con clientes de correo antiguos.
+## 📋 **Descripción del Proyecto**
 
-> [Detalles de informe tecnico](informe-tecnico-n8n.md)
+Sistema de automatización inteligente que utiliza **Retrieval-Augmented Generation (RAG)** para generar código HTML profesional a partir de imágenes de email marketing. El proyecto combina el poder de **n8n**, **OpenAI Vision**, **Anthropic - Clude**, **Supabase Vector Store** y **embeddings semánticos** para crear un flujo de trabajo completamente automatizado que analiza, aprende y genera HTML basándose en patrones visuales similares.
 
-## 📋 Tabla de Contenidos
+### 🎯 **Objetivo Principal**
 
-- [Arquitectura General](#arquitectura-general-del-flujo)
-- [Flujo de Datos](#flujo-de-datos-detallado)
-- [Características Técnicas](#características-técnicas-clave)
-- [Requerimientos y Permisos](#requerimientos-y-permisos)
-- [Configuración de Seguridad](#configuración-de-seguridad)
-- [Manejo de Errores](#manejo-de-errores)
-- [Optimizaciones](#optimizaciones-implementadas)
+Automatizar la generación de código HTML para campañas de email marketing mediante:
+- Análisis visual inteligente de imágenes con OpenAI Vision API
+- Búsqueda semántica en base de conocimiento vectorial
+- Generación contextualizada de HTML basada en ejemplos similares
+- Integración con SharePoint para almacenamiento empresarial
 
-## 🏗️ Arquitectura General del Flujo
+## 🏗️ **Arquitecturas**
 
-El flujo se divide en **6 secciones principales**:
-
-### 1. RECEPCIÓN Y PROCESAMIENTO DE DATOS
-
-**Nodos involucrados:**
-- `Webhook FormData1`: Punto de entrada HTTP POST en `/generate-infografia`
-- `Procesar FormData1`: Extrae archivos binarios y metadata del FormData
-
-**Función:** Recibe múltiples imágenes desde un frontend vía FormData, identifica la infografía principal (imágenes con "Email" en el nombre) y separa los elementos adicionales.
-
-### 2. CONFIGURACIÓN Y AUTENTICACIÓN
-
-**Nodos involucrados:**
-- `Configurar Credenciales1`: Almacena credenciales de Azure/SharePoint y Claude
-- `Autenticar SharePoint1`: Obtiene token OAuth2 de Microsoft Graph
-- `Obtener Info Site1`: Recupera ID del sitio SharePoint
-- `Preparar Estructura Carpetas1`: Define estructura de directorios
-- `Crear Carpetas1`: Crea carpetas en SharePoint
-
-**Función:** Establece conexión autenticada con SharePoint y prepara la estructura de carpetas:
-
-```
-/Documentos compartidos/HTML_Mailings/
-  └── [project_id]/
-      ├── infografia/  (imagen principal)
-      └── elementos/   (imágenes adicionales)
-```
-
-### 3. PROCESAMIENTO PARALELO DE IMÁGENES
-
-**Rama 1 - Infografía Principal:**
-- `Preparar Infografía`: Selecciona imagen que empiece con "Email" o la primera disponible
-- `Subir Infografía`: Sube a SharePoint vía Microsoft Graph API
-
-**Rama 2 - Elementos Adicionales:**
-- `Preparar Elemento`: Procesa todas las imágenes excepto la infografía
-- `Subir Elemento`: Sube cada elemento individualmente a SharePoint
-
-**Función:** Procesa y sube todas las imágenes en paralelo, renombrándolas con formato limpio.
-
-### 4. GENERACIÓN DE HTML CON IA
-
-**Nodos involucrados:**
-- `Merge2`: Combina resultados de ambas ramas
-- `Preparar Prompt Claude1`: Construye prompt con imagen infografía
-- `Analyze image1`: Claude analiza la imagen y genera HTML
-- `Procesar HTML con placeholder`: Limpia respuesta de Claude
-
-**Función:** Claude analiza visualmente la infografía y genera HTML con estructura de tablas compatible con Outlook 2010+, usando placeholders para las URLs de imágenes.
-
-### 5. INYECCIÓN DE URLs Y FINALIZACIÓN
-
-**Nodos involucrados:**
-- `URLs sharepoint`: Reemplaza placeholders con URLs reales de SharePoint
-- `Subir HTML1`: Guarda HTML final en SharePoint
-- `Respuesta Final1`: Prepara respuesta JSON de éxito
-
-**Función:** Mapea inteligentemente las URLs de SharePoint a los placeholders del HTML y guarda el archivo final.
-
-## 🔄 Flujo de Datos Detallado
+### Arquitectura del sistema
 
 ```mermaid
 graph TD
-    A[Webhook recibe FormData] --> B[Procesar y separar imágenes]
-    B --> C[Autenticar con SharePoint]
-    C --> D[Crear estructura carpetas]
-    D --> E[Split: Procesar imágenes]
-    E --> F[Subir Infografía principal]
-    E --> G[Subir Elementos adicionales]
-    F --> H[Merge resultados]
-    G --> H
-    H --> I[Claude genera HTML desde imagen]
-    I --> J[Limpiar HTML generado]
-    J --> K[Inyectar URLs SharePoint]
-    K --> L[Subir HTML final]
-    L --> M[Respuesta de éxito]
+    A[Usuario sube imagen] --> B[Frontend HTML5]
+    B --> C[Webhook n8n]
+    C --> D[OpenAI Vision API]
+    D --> E[Descripción Semántica]
+    E --> F[Vector Search en Supabase]
+    F --> G[Recuperar HTML Similar]
+    G --> H[Generar Nuevo HTML con Anthropic]
+    H --> I[Subir a SharePoint]
+    I --> J[Respuesta al Usuario]
 ```
 
-## ⚙️ Características Técnicas Clave
+Flujo de trabajo aqui (...)
 
-### Manejo de Binarios
-- Usa `filesystem-v2` para archivos grandes
-- Preserva referencias binarias entre nodos
-- Procesa múltiples archivos en paralelo
+### Arquitectura del rag
 
-### Generación HTML
-- Estructura XHTML 1.0 Transitional
-- Tablas anidadas (sin CSS moderno)
-- Ancho fijo 600px
-- Compatible con Outlook 2010+
+```mermaid
+graph TD
+    A[Usuario sube imagen] + [Usuario sube html]  --> B[Supabase]
+    B --> C[link c/u]
+    C --> D[OpenAI API]
+    D --> E[Descripción Semántica link img] 
+    E --> F[Metadata =  link html]
+    E --> F[Vector Storage en Supabase]
+```
 
-### Mapeo Inteligente
-- Identifica imágenes por nombre (banner, cabecera, etc.)
-- Asigna URLs por defecto para redes sociales
-- Maneja placeholders dinámicamente
+Flujo de trabajo aqui (...)
 
-## 📋 Requerimientos y Permisos
 
-### 1. Microsoft Graph API / SharePoint
+## 🛠️ Tecnologías Utilizadas
 
-**Credenciales:**
-- **Tenant ID:** Identificador del inquilino Azure AD
-- **Client ID:** ID de aplicación registrada en Azure
-- **Client Secret:** Secreto de aplicación
+| Componente | Tecnología | Versión/Modelo |
+|------------|------------|----------------|
+| Orquestación | n8n | Latest |
+| BD Vectorial | Supabase PostgreSQL | pgvector |
+| Análisis de Imágenes | OpenAI Vision API | GPT-4o |
+| Embeddings | OpenAI | text-embedding-3-large |
+| Codigo HTML | Antrhopic | Claude Opues 4.1 |
+| Reranking | Cohere API | Latest |
+| Almacenamiento | SharePoint | Microsoft 365 |
+| Frontend | HTML5/CSS3/JavaScript | Vanilla |
 
-**Permisos requeridos:**
-- `Sites.ReadWrite.All` - Lectura/escritura en sitios SharePoint
-- `Files.ReadWrite.All` - Gestión completa de archivos
-- `offline_access` - Tokens de actualización
-  ![Permisos](documentation/permissions.png)
 
-### 2. Claude API (Anthropic)
+## 📁 **Estructura del Proyecto**
 
-- **API Key:** Token de autenticación
-- **Modelo:** `claude-opus-4-1-20250805`
-- **Capacidades:** Análisis de imágenes y generación de código
-- **Límite:** 5000 tokens máximo por respuesta
+```
+rag-html-generator/
+├── workflows/
+│   ├── RAG_v2.json           # Flujo de construcción del vector store
+│   └── html_3.json           # Flujo principal de generación HTML
+├── frontend/
+│   └── index_2.html          # Interfaz de usuario
+├── docs/
+│   └── README.md             # Documentación
+└── examples/
+    └── email_templates/      # Ejemplos de HTML almacenados
+```
 
-### 3. Infraestructura n8n
 
-- **Versión:** Compatible con n8n 2025
-- **Webhook:** Puerto HTTP abierto para recibir POST
-- **Almacenamiento:** Soporte para `filesystem-v2`
-- **Timeout:** Configurado a 30-60 segundos para uploads
+## 🔄 **FLUJOS DE TRABAJO**
 
-### 4. SharePoint Site
+### 1️⃣ **RAG_v2.json - Construcción del Vector Store**
 
-- **Hostname:** `netorgft4158062.sharepoint.com`
-- **Site:** RespuestasdeFormulariodetraspasos
-- **Estructura:** Permisos de escritura en `/Documentos compartidos/`
+Este flujo es el corazón del sistema RAG y se ejecuta para construir la base de conocimiento:
 
-## 🔐 Configuración de Seguridad
+#### **Paso a Paso:**
 
-- **Autenticación OAuth2:** Flujo `client_credentials` para aplicación sin usuario
-- **Tokens temporales:** Se renuevan en cada ejecución
-- **Validación de archivos:** Solo acepta imágenes MIME válidas
-- **Sanitización de nombres:** Elimina caracteres especiales en nombres de archivo
+1. **Trigger Manual** (`When`)
+   - Inicia el proceso de indexación de ejemplos
 
-## ⚠️ Manejo de Errores
+2. **Preparar Datos URL** (`Preparar_Datos_url`)
+   - Carga 10 ejemplos de emails con sus URLs de Supabase
+   - Estructura: `example_id`, `screenshot_url`, `html_url`, `tipo_email`
 
-- **Fallbacks:** Si no encuentra imagen "Email", usa la primera disponible
-- **Validación HTML:** Verifica estructura Prima AFP (colores, footer legal)
-- **Placeholders vacíos:** Se reemplazan con "#" si no hay URL disponible
-- **Logs detallados:** Console.log en cada paso crítico para debugging
+3. **Estructurar Datos Iniciales** (`estructurar_datos_iniciales`)
+   - Define el prompt de análisis con 13 criterios semánticos:
+     - Estructura HTML observada
+     - Identidad única del email
+     - Elementos distintivos
+     - Contexto diferenciador
 
-## 🚀 Optimizaciones Implementadas
+4. **Analizar Imagen** (`Analizar Imagen`)
+   - Llamada a OpenAI Vision API (GPT-4o)
+   - Genera descripción semántica profunda de cada email
+   - Temperatura: 0.3 para consistencia
 
-1. **Procesamiento paralelo:** Sube infografía y elementos simultáneamente
-2. **Reutilización de tokens:** Un solo token para todas las operaciones SharePoint
-3. **Mapeo inteligente:** Identifica automáticamente tipos de imagen por nombre
-4. **Limpieza automática:** Elimina narrativa de Claude, mantiene solo HTML
+5. **Estructurar Datos Finales** (`Estructurar_datos_finales`)
+   - Combina: `example_id`, `html_url`, `image_url`, descripción
+   - Prepara metadata para trazabilidad
+
+6. **Embeddings y Vector Store** 
+   - **Embeddings OpenAI**: Modelo `text-embedding-3-large` (1536 dimensiones)
+   - **Supabase Vector Store**: Almacena vectores con metadata
+   - Tabla: `documents` con función de búsqueda `match_documents`
+
+### 2️⃣ **html_3.json - Generación de HTML desde Imágenes**
+
+Flujo principal que procesa las solicitudes del usuario:
+
+#### **Paso a Paso:**
+
+1. **Webhook Endpoint** (`Webhook`)
+   - Path: `/obtener_imagen`
+   - Método: POST
+   - CORS habilitado
+   - Recibe imagen en base64
+
+2. **Procesar Imagen** (`procesar imagen`)
+   - Valida y limpia datos binarios
+   - Convierte a base64 limpio
+   - Maneja tipos MIME correctamente
+
+3. **Generar Descripción** (`generar_descripcion`)
+   - Analiza la imagen con OpenAI Vision
+   - Extrae características visuales y semánticas
+
+4. **Búsqueda Vectorial** (`Supabase Vector Store`)
+   - Modo: `load` para búsqueda semántica
+   - Top-K: 2 resultados más similares
+   - Usa Reranker de Cohere para optimizar resultados
+
+5. **Descargar HTML de Referencia** (`Descargar_HTML`)
+   - Obtiene el HTML del ejemplo más similar
+   - Usa como base para la generación
+
+6. **Preparar Prompt Final** (`Preparar prompt final`)
+   - Combina:
+     - HTML de referencia
+     - Descripción de la nueva imagen
+     - Instrucciones de adaptación
+
+7. **Generar Nuevo HTML** (`Analyze image`)
+   - OpenAI GPT-4o genera HTML adaptado
+   - Mantiene estructura pero personaliza contenido
+
+8. **Integración SharePoint**
+   - **Configurar Credenciales**: Setup de autenticación
+   - **Autenticar SharePoint**: Obtiene token de acceso
+   - **Obtener Info Site**: Metadata del sitio
+   - **Subir HTML**: Guarda el archivo generado
+
+9. **Responder al Usuario** (`Respond`)
+   - Devuelve HTML generado
+   - Headers CORS configurados
+   - Código 200 con JSON response
+
+### 3️⃣ **index_2.html - Interfaz de Usuario**
+
+Frontend moderno y responsivo con las siguientes características:
+
+#### **Funcionalidades:**
+- 📤 **Carga de Imágenes**: Drag & drop o selección manual
+- 🖼️ **Preview**: Visualización previa de la imagen
+- 📊 **Información del Archivo**: Tamaño, tipo, nombre
+- 🔄 **Indicador de Proceso**: Estados en tiempo real
+- 📋 **Visor de Código**: Syntax highlighting del HTML generado
+- 💾 **Descarga**: Botón para guardar el HTML
+- 📱 **Diseño Responsivo**: Adaptable a todos los dispositivos
+
+#### **Validaciones:**
+- Tipos de archivo: PNG, JPG, JPEG
+- Tamaño máximo: 5MB
+- Verificación de conexión con webhook
+
+
+## 📊 Características Clave
+
+### 🎨 Análisis Semántico Profundo
+- 13 criterios de análisis por imagen
+- Identificación de patrones visuales
+- Extracción de elementos distintivos
+- Comprensión del contexto empresarial
+
+### 🔍 Búsqueda Inteligente
+- Embeddings de 1536 dimensiones
+- Búsqueda por similitud coseno
+- Reranking con Cohere para precisión
+- Metadata enriquecida para filtrado
+
+### 🚀 Optimización y Escalabilidad
+- Procesamiento asíncrono
+- Cache de embeddings
+- Batch processing disponible
+- Arquitectura modular
+
+## 🔧 Configuración e Instalación
+
+### Requisitos Previos
+```bash
+- n8n instalado y configurado
+- Cuenta de Supabase con pgvector habilitado
+- API Keys:
+  - OpenAI API
+  - Cohere API
+  - SharePoint credentials
+```
+
+### Paso 1: Configurar Supabase
+```sql
+-- Crear tabla de documentos
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    content TEXT,
+    metadata JSONB,
+    embedding vector(1536)
+);
+
+-- Crear función de búsqueda
+CREATE FUNCTION match_documents(
+    query_embedding vector(1536),
+    match_count int DEFAULT 5
+) RETURNS TABLE (
+    id bigint,
+    content text,
+    metadata jsonb,
+    similarity float
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        documents.id,
+        documents.content,
+        documents.metadata,
+        1 - (documents.embedding <=> query_embedding) AS similarity
+    FROM documents
+    ORDER BY documents.embedding <=> query_embedding
+    LIMIT match_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Paso 2: Importar Workflows en n8n
+1. Importar `RAG_v2.json` para construcción del vector store
+2. Importar `html_3.json` para el flujo principal
+3. Configurar credenciales en cada nodo
+
+### Paso 3: Configurar el Frontend
+```javascript
+// Actualizar URL del webhook en index_2.html
+const WEBHOOK_URL = 'https://tu-dominio.com/webhook/obtener_imagen';
+```
+
+### Paso 4: Ejecutar el Sistema
+1. Ejecutar primero `RAG_v2` para poblar el vector store
+2. Activar el webhook de `html_3`
+3. Abrir `index_2.html` en el navegador
+
+
+## 📝 Licencia
+
+Este proyecto está licenciado bajo MIT License - ver el archivo [LICENSE](LICENSE) para más detalles.
+
+## 👥 **Autor**
+
+**Fernando Cabrera** - AI Engineer [linkedin](https://www.linkedin.com/in/fernando-cabrera-barranzuela)
 
 ---
 
-> 💡 **Nota:** Este flujo representa una solución empresarial completa para la generación automatizada de emails HTML corporativos, integrando IA para análisis visual y generación de código compatible con sistemas legacy.
-
-## 📊 Métricas de Rendimiento
-
-| Métrica | Valor |
-|---------|--------|
-| Tiempo promedio de ejecución | 50-120 segundos |
-| Tamaño máximo por archivo | 50MB |
-| Número máximo de imágenes | ~50 (práctico) |
-| Tasa de éxito | >=80% |
-
-## 🔗 Enlaces Relacionados
-
-- [Documentación Microsoft Graph API](https://docs.microsoft.com/graph/)
-- [Claude API Documentation](https://docs.anthropic.com/)
-- [n8n Documentation](https://docs.n8n.io/)
-
----
-
-*Última actualización: Septiembre 2025*
+⭐ Si este proyecto te ha sido útil, considera darle una estrella en GitHub!
