@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG HTML5 Generator - Producción 2025</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-dark: #0a2463;
+            --primary-light: #3b82f6;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --gray-100: #f3f4f6;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--white);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 800px;
+            width: 100%;
+            padding: 48px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-light));
+            border-radius: 20px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(10, 36, 99, 0.3);
+        }
+
+        .logo svg {
+            width: 45px;
+            height: 45px;
+            fill: var(--white);
+        }
+
+        h1 {
+            color: var(--primary-dark);
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: var(--gray-500);
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--success);
+            color: var(--white);
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+
+        .status-badge.error {
+            background: var(--error);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--white);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .upload-area {
+            border: 3px dashed var(--gray-300);
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            background: var(--gray-100);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-light);
+            background: #eff6ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-dark);
+            background: #dbeafe;
+            transform: scale(1.02);
+        }
+
+        .upload-area.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .upload-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .upload-icon svg {
+            width: 40px;
+            height: 40px;
+            stroke: var(--white);
+            stroke-width: 2;
+        }
+
+        .upload-text {
+            color: var(--primary-dark);
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .upload-hint {
+            color: var(--gray-500);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview-container {
+            margin-top: 32px;
+            display: none;
+        }
+
+        .preview-container.active {
+            display: block;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            background: var(--gray-100);
+        }
+
+        .file-info {
+            background: var(--gray-100);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--gray-300);
+        }
+
+        .file-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .file-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-info-label {
+            color: var(--gray-500);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .file-info-value {
+            color: var(--primary-dark);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .btn:hover::before {
+            transform: translateX(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-light));
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(10, 36, 99, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(10, 36, 99, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: var(--gray-300);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+
+        .btn-secondary {
+            background: var(--gray-100);
+            color: var(--primary-dark);
+            border: 2px solid var(--gray-300);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+            border-color: var(--gray-500);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669, var(--success));
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(5, 150, 105, 0.4);
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid var(--white);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--gray-300);
+            border-radius: 100px;
+            overflow: hidden;
+            margin-top: 24px;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-light), var(--primary-dark));
+            border-radius: 100px;
+            animation: progress 2s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        .result-container {
+            margin-top: 32px;
+            display: none;
+        }
+
+        .result-container.active {
+            display: block;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .result-title {
+            color: var(--primary-dark);
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .copy-button {
+            padding: 8px 16px;
+            background: var(--gray-100);
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            color: var(--gray-700);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-button:hover {
+            background: var(--gray-300);
+        }
+
+        .copy-button.copied {
+            background: var(--success);
+            color: var(--white);
+            border-color: var(--success);
+        }
+
+        .code-preview {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            max-height: 500px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .code-preview pre {
+            color: #e2e8f0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+
+        .status-message {
+            margin-top: 24px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .status-message.active {
+            display: flex;
+        }
+
+        .status-message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .status-message.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .status-message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .status-message.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .status-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .upload-area {
+                padding: 40px 20px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+
+        /* Scrollbar personalizada para el código */
+        .code-preview::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .code-preview::-webkit-scrollbar-track {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        .code-preview::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 4px;
+        }
+
+        .code-preview::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38a2.167 2.167 0 0 0-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44a23.476 23.476 0 0 0-3.107-.534A23.892 23.892 0 0 0 12.769 4.62c1.714-1.628 3.312-2.526 4.812-2.526zm-9.744.011c1.492 0 3.09.903 4.802 2.514-1.02.985-2.04 2.093-3.057 3.297a22.916 22.916 0 0 0-3.096.538 14.641 14.641 0 0 1-.254-1.42c-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.755c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.564zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87a25.64 25.64 0 0 1-4.412.005 26.64 26.64 0 0 1-1.183-1.86c-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868A25.17 25.17 0 0 1 12 8.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66 1.933a25.952 25.952 0 0 0-1.345-2.32zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493a23.966 23.966 0 0 0-1.1-2.98c.45-1.017.81-2.01 1.085-2.962zm-13.395.004c.278.96.645 1.957 1.1 2.98a23.142 23.142 0 0 0-1.086 2.964c-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474 0-.768 1.12-1.742 2.852-2.476.42-.18.88-.342 1.356-.494zm11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39a25.819 25.819 0 0 0 1.341-2.338zm-9.945.02c.2.392.41.783.64 1.175.23.39.465.772.705 1.143a22.005 22.005 0 0 1-2.006-.386c.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.492 0-3.09-.903-4.802-2.514 1.02-.985 2.04-2.093 3.057-3.297a23.187 23.187 0 0 0 3.096-.538 15.086 15.086 0 0 1-.328 1.09zm-10.891.064c.476.13.968.248 1.47.35a23.774 23.774 0 0 0 3.089.545 23.778 23.778 0 0 0 3.046-3.286c-1.714 1.628-3.312 2.524-4.812 2.524h-.003c-.225 0-.406-.044-.558-.127-.666-.382-.955-1.835-.73-3.703.055-.494.138-.98.258-1.45-.476.13-.966.248-1.467.35a6.687 6.687 0 0 0-.293 1.097zm4.888-3.554c-.455-.468-.91-.99-1.36-1.564.44.02.89.034 1.345.034.46 0 .915-.01 1.36-.034-.44.572-.895 1.095-1.345 1.564z"/>
+                </svg>
+            </div>
+            <h1>RAG HTML5 Generator - InAdvance</h1>
+            <p class="subtitle">Convierte imágenes en código HTML profesional usando IA avanzada</p>
+            <div class="status-badge" id="connectionStatus">
+                <span class="status-indicator"></span>
+                <span>Sistema Conectado</span>
+            </div>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" class="file-input" accept="image/png,image/jpeg,image/jpg">
+            <div class="upload-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+            </div>
+            <p class="upload-text">Arrastra y suelta tu imagen aquí</p>
+            <p class="upload-hint">o haz clic para seleccionar<br>PNG, JPG (máx. 5MB)</p>
+        </div>
+
+        <div class="preview-container" id="previewContainer">
+            <img id="previewImage" class="preview-image" alt="Vista previa">
+            <div class="file-info">
+                <div class="file-info-grid">
+                    <div class="file-info-item">
+                        <span class="file-info-label">Archivo</span>
+                        <span class="file-info-value" id="fileName">-</span>
+                    </div>
+                    <div class="file-info-item">
+                        <span class="file-info-label">Tamaño</span>
+                        <span class="file-info-value" id="fileSize">-</span>
+                    </div>
+                    <div class="file-info-item">
+                        <span class="file-info-label">Tipo</span>
+                        <span class="file-info-value" id="fileType">-</span>
+                    </div>
+                    <div class="file-info-item">
+                        <span class="file-info-label">Estado</span>
+                        <span class="file-info-value" id="fileStatus">Listo</span>
+                    </div>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-secondary" id="cancelBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" id="generateBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Generar HTML Profesional
+                </button>
+            </div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="result-container" id="resultContainer">
+            <div class="result-header">
+                <h3 class="result-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M9.4 16.6L4.8 12l-1.4 1.4L9.4 20 21.6 7.8l-1.4-1.4z"/>
+                    </svg>
+                    HTML Generado
+                </h3>
+                <button class="copy-button" id="copyBtn">
+                    📋 Copiar código
+                </button>
+            </div>
+            <div class="code-preview">
+                <pre id="generatedCode"></pre>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-secondary" id="newImageBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Nueva Imagen
+                </button>
+                <button class="btn btn-success" id="downloadBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Descargar HTML
+                </button>
+            </div>
+        </div>
+
+        <div class="status-message" id="statusMessage">
+            <svg class="status-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"/>
+            </svg>
+            <span id="statusText"></span>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ CONFIGURACIÓN IMPORTANTE - Actualiza con tu URL de webhook de n8n
+        const WEBHOOK_URL = 'https://endnewmember.app.n8n.cloud/webhook-test/obtener_imagen';
+        
+        // Elementos del DOM
+        const elements = {
+            uploadArea: document.getElementById('uploadArea'),
+            fileInput: document.getElementById('fileInput'),
+            previewContainer: document.getElementById('previewContainer'),
+            previewImage: document.getElementById('previewImage'),
+            fileName: document.getElementById('fileName'),
+            fileSize: document.getElementById('fileSize'),
+            fileType: document.getElementById('fileType'),
+            fileStatus: document.getElementById('fileStatus'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            generateBtn: document.getElementById('generateBtn'),
+            statusMessage: document.getElementById('statusMessage'),
+            statusText: document.getElementById('statusText'),
+            progressBar: document.getElementById('progressBar'),
+            resultContainer: document.getElementById('resultContainer'),
+            generatedCode: document.getElementById('generatedCode'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            newImageBtn: document.getElementById('newImageBtn'),
+            copyBtn: document.getElementById('copyBtn'),
+            connectionStatus: document.getElementById('connectionStatus')
+        };
+
+        let selectedFile = null;
+        let generatedHTML = '';
+
+        // Verificar conexión con el webhook
+        async function checkConnection() {
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'OPTIONS',
+                    mode: 'cors'
+                });
+                
+                if (response.ok || response.status === 405) {
+                    elements.connectionStatus.innerHTML = '<span class="status-indicator"></span><span>Sistema Conectado</span>';
+                    elements.connectionStatus.classList.remove('error');
+                } else {
+                    throw new Error('No conectado');
+                }
+            } catch (error) {
+                elements.connectionStatus.innerHTML = '<span class="status-indicator"></span><span>Sistema Desconectado</span>';
+                elements.connectionStatus.classList.add('error');
+                console.warn('⚠️ No se pudo verificar la conexión con el webhook:', error);
+            }
+        }
+
+        // Click para abrir selector
+        elements.uploadArea.addEventListener('click', () => {
+            if (!elements.uploadArea.classList.contains('disabled')) {
+                elements.fileInput.click();
+            }
+        });
+
+        // Drag and drop
+        elements.uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!elements.uploadArea.classList.contains('disabled')) {
+                elements.uploadArea.classList.add('dragover');
+            }
+        });
+
+        elements.uploadArea.addEventListener('dragleave', () => {
+            elements.uploadArea.classList.remove('dragover');
+        });
+
+        elements.uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.uploadArea.classList.remove('dragover');
+            
+            if (!elements.uploadArea.classList.contains('disabled')) {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            }
+        });
+
+        // Selección de archivo
+        elements.fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validaciones
+            if (!file.type.match('image/(png|jpeg|jpg)')) {
+                showStatus('Por favor selecciona una imagen PNG o JPG', 'error');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                showStatus('La imagen no debe superar 5MB', 'error');
+                return;
+            }
+
+            selectedFile = file;
+            elements.fileStatus.textContent = 'Listo para procesar';
+
+            // Mostrar preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                elements.previewImage.src = e.target.result;
+                elements.fileName.textContent = file.name;
+                elements.fileSize.textContent = formatFileSize(file.size);
+                elements.fileType.textContent = file.type;
+                elements.previewContainer.classList.add('active');
+                elements.resultContainer.classList.remove('active');
+                elements.uploadArea.classList.add('disabled');
+                hideStatus();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Cancelar
+        elements.cancelBtn.addEventListener('click', resetForm);
+
+        // Generar HTML
+        elements.generateBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            elements.generateBtn.disabled = true;
+            elements.generateBtn.innerHTML = '<div class="spinner"></div> Procesando...';
+            elements.fileStatus.textContent = 'Procesando...';
+            elements.progressBar.classList.add('active');
+            hideStatus();
+
+            try {
+                // Leer archivo como base64
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64Data = e.target.result.split(',')[1];
+
+                    // Mostrar estados del proceso
+                    showStatus('🔍 Analizando imagen con OpenAI Vision...', 'info');
+                    
+                    // Hacer petición al webhook
+                    const response = await fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        mode: 'cors',
+                        body: JSON.stringify({
+                            data: base64Data,
+                            filename: selectedFile.name,
+                            mimeType: selectedFile.type,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Error del servidor:', errorText);
+                        throw new Error(`Error del servidor (${response.status}): ${errorText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success && result.html) {
+                        generatedHTML = result.html;
+                        elements.generatedCode.textContent = generatedHTML;
+                        
+                        // Mostrar resultado
+                        elements.previewContainer.classList.remove('active');
+                        elements.resultContainer.classList.add('active');
+                        elements.fileStatus.textContent = 'Completado';
+                        showStatus('✅ HTML generado exitosamente con ' + generatedHTML.length + ' caracteres', 'success');
+                        
+                        // Log estadísticas si están disponibles
+                        if (result.stats) {
+                            console.log('📊 Estadísticas:', result.stats);
+                        }
+                    } else {
+                        throw new Error(result.message || 'No se pudo generar el HTML');
+                    }
+                };
+                reader.readAsDataURL(selectedFile);
+
+            } catch (error) {
+                console.error('❌ Error completo:', error);
+                elements.fileStatus.textContent = 'Error';
+                showStatus(`Error: ${error.message}`, 'error');
+                
+                // Si hay error de conexión, actualizar estado
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    elements.connectionStatus.innerHTML = '<span class="status-indicator"></span><span>Sin Conexión</span>';
+                    elements.connectionStatus.classList.add('error');
+                    showStatus('No se puede conectar con el servidor. Verifica que el webhook esté activo.', 'error');
+                }
+            } finally {
+                elements.generateBtn.disabled = false;
+                elements.generateBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Generar HTML Profesional
+                `;
+                elements.progressBar.classList.remove('active');
+            }
+        });
+
+        // Copiar código
+        elements.copyBtn.addEventListener('click', async () => {
+            if (!generatedHTML) return;
+            
+            try {
+                await navigator.clipboard.writeText(generatedHTML);
+                elements.copyBtn.textContent = '✅ Copiado!';
+                elements.copyBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    elements.copyBtn.textContent = '📋 Copiar código';
+                    elements.copyBtn.classList.remove('copied');
+                }, 2000);
+            } catch (error) {
+                console.error('Error al copiar:', error);
+                showStatus('No se pudo copiar el código', 'error');
+            }
+        });
+
+        // Descargar HTML
+        elements.downloadBtn.addEventListener('click', () => {
+            if (!generatedHTML) {
+                showStatus('No hay HTML para descargar', 'error');
+                return;
+            }
+
+            const blob = new Blob([generatedHTML], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `generated-html-${Date.now()}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showStatus('📥 HTML descargado exitosamente', 'success');
+        });
+
+        // Nueva imagen
+        elements.newImageBtn.addEventListener('click', resetForm);
+
+        function resetForm() {
+            selectedFile = null;
+            generatedHTML = '';
+            elements.fileInput.value = '';
+            elements.previewContainer.classList.remove('active');
+            elements.resultContainer.classList.remove('active');
+            elements.uploadArea.classList.remove('disabled');
+            elements.fileStatus.textContent = '-';
+            hideStatus();
+            elements.progressBar.classList.remove('active');
+        }
+
+        function showStatus(message, type = 'info') {
+            elements.statusText.textContent = message;
+            elements.statusMessage.className = `status-message active ${type}`;
+        }
+
+        function hideStatus() {
+            elements.statusMessage.classList.remove('active');
+        }
+
+        // Inicialización
+        console.log('🚀 RAG HTML5 Generator inicializado');
+        console.log('📡 Webhook URL:', WEBHOOK_URL);
+        console.log('📅 Versión: 2025.01');
+        
+        // Verificar conexión al cargar
+        checkConnection();
+        
+        // Verificar conexión cada 30 segundos
+        setInterval(checkConnection, 30000);
+    </script>
+</body>
+</html>
