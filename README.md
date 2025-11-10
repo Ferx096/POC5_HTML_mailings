@@ -14,7 +14,7 @@ Automatizar la generación de código HTML para campañas de email marketing med
 
 ## 🏗️ **Arquitecturas**
 
-### **Arquitectura del sistema**
+### **1. Arquitectura del sistema**
 
 ```mermaid
 graph TD
@@ -28,10 +28,10 @@ graph TD
     H --> I[Subir a SharePoint]
     I --> J[Respuesta al Usuario]
 ```
-Flujo de trabajo aqui [Ir a html_3.json - Generación de HTML desde Imágenes](https://github.com/Ferx096/POC5_HTML_mailings/blob/main/flujos.md#2️⃣-html_3json---generación-de-html-desde-imágenes)
+Detalles del flujo de trabajo aqui: [Ir a html_3.json - Generación de HTML desde Imágenes](https://github.com/Ferx096/POC5_HTML_mailings/blob/main/flujos.md#2️⃣-html_3json---generación-de-html-desde-imágenes)
 
                                                                                                                                                     
-### **Arquitectura del rag**
+### **2. Arquitectura del rag**
 
 ```mermaid
 graph LR
@@ -42,7 +42,7 @@ graph LR
     E --> F[Metadata =  link html]
     E --> F[Vector Storage en Supabase]
 ```
-Flujo de trabajo aqui [Ir a RAG_v2.json - Construcción del Vector Store](https://github.com/Ferx096/POC5_HTML_mailings/blob/main/flujos.md#1️⃣-rag_v2json---construcción-del-vector-store)
+Detalles del flujo de trabajo aqui: [Ir a RAG_v2.json - Construcción del Vector Store](https://github.com/Ferx096/POC5_HTML_mailings/blob/main/flujos.md#1️⃣-rag_v2json---construcción-del-vector-store)
 
 
 ## 🛠️ Tecnologías Utilizadas
