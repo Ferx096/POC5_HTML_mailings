@@ -17,7 +17,7 @@ Automatizar la generación de código HTML para campañas de email marketing med
 ### Arquitectura del sistema
 
 ```mermaid
-graph TD
+graph LR
     A[Usuario sube imagen] --> B[Frontend HTML5]
     B --> C[Webhook n8n]
     C --> D[OpenAI Vision API]
@@ -33,7 +33,7 @@ Flujo de trabajo aqui (...)
 ### Arquitectura del rag
 
 ```mermaid
-graph TD
+graph LR
     A[Usuario sube imagen + Usuario sube html]  --> B[Supabase]
     B --> C[link c/u]
     C --> D[OpenAI API]
