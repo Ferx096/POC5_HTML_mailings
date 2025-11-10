@@ -4,6 +4,8 @@
 
 Este flujo es el corazón del sistema RAG y se ejecuta para construir la base de conocimiento:
 
+![Flujo RAG](image/RAG.png)
+
 #### **Paso a Paso:**
 
 1. **Trigger Manual** (`When`)
@@ -34,9 +36,11 @@ Este flujo es el corazón del sistema RAG y se ejecuta para construir la base de
    - **Supabase Vector Store**: Almacena vectores con metadata
    - Tabla: `documents` con función de búsqueda `match_documents`
 
+
 ## 2️⃣ **html_3.json - Generación de HTML desde Imágenes**
 
 Flujo principal que procesa las solicitudes del usuario:
+![Flujo html](image/json_html.png)
 
 #### **Paso a Paso:**
 
@@ -71,7 +75,7 @@ Flujo principal que procesa las solicitudes del usuario:
      - Instrucciones de adaptación
 
 7. **Generar Nuevo HTML** (`Analyze image`)
-   - OpenAI GPT-4o genera HTML adaptado
+   - Antrhopic - Claude oppus 4.1 genera HTML adaptado
    - Mantiene estructura pero personaliza contenido
 
 8. **Integración SharePoint**
@@ -84,6 +88,7 @@ Flujo principal que procesa las solicitudes del usuario:
    - Devuelve HTML generado
    - Headers CORS configurados
    - Código 200 con JSON response
+
 
 ## 3️⃣ **index_2.html - Interfaz de Usuario**
 
@@ -104,7 +109,7 @@ Frontend moderno y responsivo con las siguientes características:
 - Verificación de conexión con webhook
 
 
-## 📊 Características Clave
+## 📊 **Características Clave**
 
 ### 🎨 Análisis Semántico Profundo
 - 13 criterios de análisis por imagen
