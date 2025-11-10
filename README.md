@@ -89,7 +89,32 @@ rag-html-generator/
 ```
 ![credenciales](image/credenciales_n8n.png)
 
-### Paso 1: Configurar Supabase
+### Paso 1: Microsoft Graph API / SharePoint
+
+| Credencial | Descripcion | Conexion |
+|------------|------------|----------------|
+| TENANT_ID | Identificador del inquilino Azure AD | TENANT_ID |
+| CLIENT_ID | ID de aplicación registrada en Azure | CLIENT_ID |
+| CLIENT_SECRET | Secreto de aplicación | CLIENT_SECRET |
+| SHAREPOINT_HOSTNAME | nombre host de sharepoint | netorgft4158062.sharepoint.com |
+| SHAREPOINT_SITE | nombre del sitio de sharepoint |  RespuestasdeFormulariodetraspasos |
+
+**Variables:**
+- Hostname: `netorgft4158062.sharepoint.com`
+- Site: `RespuestasdeFormulariodetraspasos`
+- Estructura: Permisos de escritura en `/Documentos compartidos/`
+- url: `https://graph.microsoft.com/v1.0/sites/{{ $json.id }}/drive/root:/Documentos compartidos/{{ Date.now() }}.html:/content`
+
+**Permisos requeridos:**
+- `Sites.ReadWrite.All` - Lectura/escritura en sitios SharePoint
+- `Files.ReadWrite.All` - Gestión completa de archivos
+- `offline_access` - Tokens de actualización
+
+  ![Permisos](image/permissions.png)
+
+
+
+### Paso 2: Configurar Supabase
 ```sql
 -- Habilitar la extensión pgvector
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -133,18 +158,18 @@ $$;
 
 ![Tabla de vector storage en supabase](image/vector_storage_suapbase.png)
 
-### Paso 2: Importar Workflows en n8n
+### Paso 3: Importar Workflows en n8n
 1. Importar `RAG_v2.json` para construcción del vector store
 2. Importar `html_3.json` para el flujo principal
 3. Configurar credenciales en cada nodo
 
-### Paso 3: Configurar el Frontend
+### Paso 4: Configurar el Frontend
 ```javascript
 // Actualizar URL del webhook en index_2.html
 const WEBHOOK_URL = 'https://tu-dominio.com/webhook/obtener_imagen';
 ```
 
-### Paso 4: Ejecutar el Sistema
+### Paso 5: Ejecutar el Sistema
 1. Ejecutar primero [RAG_v2](RAG/RAG_v2.json) para poblar el vector store
 2. Activar el webhook de [html_3](json_n8n/html_3.json)
 3. Abrir [index_2.html](frontend/index_2.html) en el navegador 
