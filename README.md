@@ -145,9 +145,9 @@ const WEBHOOK_URL = 'https://tu-dominio.com/webhook/obtener_imagen';
 ```
 
 ### Paso 4: Ejecutar el Sistema
-1. Ejecutar primero `RAG_v2` para poblar el vector store
-2. Activar el webhook de `html_3`
-3. Abrir `index_2.html` en el navegador
+1. Ejecutar primero [RAG_v2](RAG/RAG_v2.json) para poblar el vector store
+2. Activar el webhook de [html_3](json_n8n/html_3.json)
+3. Abrir [index_2.html](frontend/index_2.html) en el navegador 
 
 
 ## 📝 Licencia
