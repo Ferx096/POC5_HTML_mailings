@@ -93,6 +93,7 @@ Flujo principal que procesa las solicitudes del usuario:
 ## 3️⃣ **index_2.html - Interfaz de Usuario**
 
 Frontend moderno y responsivo con las siguientes características:
+![interfaz](image/index.png)
 
 #### **Funcionalidades:**
 - 📤 **Carga de Imágenes**: Drag & drop o selección manual
